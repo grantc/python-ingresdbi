@@ -1,0 +1,82 @@
+IngresDBI CHANGELOG - Last updated $Date$
+
+30-Apr-2007  $Date$
+      Include GPL v2 License text in all source files - [grant - 8-May-2008]
+      Raise IOError if the trace file cannot be opened - [grant - 28-Apr-2008]
+      Extend search for odbcinst.ini - [grant - 28-Apr-2008]
+
+09-May-2006 - 2.0.0
+      Incremented version to 2.0.0.
+      Fixed a number of memory leaks and negative reference counts.
+      Added cursor.setinputsize(), cursor.setoutputsizes(),
+      cursor.errorhandler, connection.errorhandler, connection exception
+      objects, warnings for extended attributes, cursor.messages, and
+      connection.messages.
+
+10-Mar-2006 - 1.9.4
+      Incorporated markdown utility for generation of README.html.  Fixed
+      various memory leaks related to Curosr.close().
+
+26-Jan-2006 - 1.9.3
+      Fixed reference count in Cursor.next() method.
+      
+22-Nov-2005 - 1.9.2
+      Implemented extended cursor methods __iter__() and next().
+      Implemented extended cursor attribute rownumber.
+
+16-Nov-2005 - 1.9.1
+      Populated cursor description attributes display size, internal size,
+      precision, and scale.  Updated README.html file.
+
+24-Jun-2005 - 1.9.0
+      Added cursor.callproc().  Added datetime support.  Note that the 2.4 
+      version of Python is now required to support the Ingres DBI.
+
+19-May-2005 - 1.5.0
+      Implemented cursor.executemany().  Upgraded cursor.callproc() to 
+      support row-returning procedures and to return the input parameters.
+
+23-Feb-2005 - 1.0.8
+      Implemented cursor.fetchmany().  First phase of support for
+      cursor.callproc(): no support for BYREF or return parameters,
+      but does support input parameters.     
+
+16-Feb-2005 - 1.0.7
+      Tightened up INCREF and DECREF's to improve memory efficiency.
+
+31-Jan-2005 - 1.0.6
+      Fixed fetch of long varchars in dbi_cursorFetchone().
+
+10-Jan-2004 - 1.0.5
+      Added dbi_freeData() routine to help resolve massive memory leaks.
+
+21-Dec-2004 - 1.0.4
+    - Added module descriptor attributes BINARY, NUMBER, STRING, and DATETIME.
+      Added full support for "None" update parameters (Note: this requires an
+      Ingres ODBC driver at level 3.50.00.46 or later).  
+    - Added connection attribute "autocommit".
+
+17-Nov-2004 - 1.0.3
+    - Fixed random GPF occuring due to memory corruption
+
+08-Nov-2004 - 1.0.2
+    - Fixed data truncation of char/varchar types
+
+05-Nov-2004 - 1.0.1
+    - Fix memory leak in connection class
+
+04-Nov-2004 - 1.0.0
+    - Fetch blobs of type LONG VARCHAR into SQL_C_CHAR, otherwise data corruption happens.
+    - Changed default driver to allow DSN less connections. removed references to ingres.lib preventing build with Windows.
+    - Added support for BigInt
+    - Added TRUE/FALSE defines for Linux
+    - Made float4/8 support functional
+    - Added version attribute to ingresdbi class.
+
+23-Sept-2004 - 0.9.1
+   - Fixed support for INTEGER1
+   - Fixed miscellaneous problems that arose when performing 
+     conformance testing including hangs and access violations.
+
+20-Sept-2004
+   - Initial Version

@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: ingresdbi
+Version: 2.0.0
+Summary: Ingres DBI 2.0 Python Driver
+Home-page: http://ingres.com
+Author: Ralph Loen
+Author-email: Ralph.Loen@ingres.com
+License: GPL
+Description: Ingres DBI 2.0 Python driver offers access to Ingres databases, Ingres gateways, and EDBC servers.
+Platform: UNKNOWN

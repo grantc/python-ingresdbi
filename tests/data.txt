@@ -1,0 +1,10 @@
+INT 1
+LONG 2222222
+FLOAT 3.0
+CHAR i am a string
+VARCHAR i am another string
+INT 1234
+LONG -1045678
+FLOAT 3.0123
+CHAR i am a string
+VARCHAR i am another string
