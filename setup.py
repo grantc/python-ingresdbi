@@ -151,7 +151,7 @@ dbiversion_str='"""%s"""' % (dbiversion)
 
 # Default build flags, libraries, etc.
 defmacros=[("DBIVERSION", dbiversion_str)]
-libraries=["iiodbc.1","m", "c"]
+libraries=["iiodbc.1","m", "c", "rt"]
 
 # wintel build flags, hopefully the same for amd64 winxp
 if platform=="win32":

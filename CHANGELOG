@@ -1,6 +1,9 @@
 IngresDBI CHANGELOG - Last updated $Date$
 
-30-Apr-2007  $Date$
+
+
+SVN
+      Add librt to allow building with Ingres 2006 r3 [grant - 8-Jul-2008]
       Include GPL v2 License text in all source files - [grant - 8-May-2008]
       Raise IOError if the trace file cannot be opened - [grant - 28-Apr-2008]
       Extend search for odbcinst.ini - [grant - 28-Apr-2008]
