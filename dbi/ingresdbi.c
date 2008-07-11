@@ -1098,6 +1098,8 @@ errorExit:
 **     28-Apr-08 grant.croker@ingres.com
 **         Extend search for odbcinst.ini, look in $II_SYSTEM/ingres/files.
 **         Use MAX_PATH as the maximum path length
+**     10-Jul-08 grant.croker@ingres.com
+**         Fix string corruption for server types
 }*/
 
 static PyObject * IIDBI_connect(PyObject *self, PyObject *args, 
@@ -1131,7 +1133,6 @@ static PyObject * IIDBI_connect(PyObject *self, PyObject *args,
     RETCODE rc=DBI_SQL_SUCCESS;
     int i;
     int result = FALSE;
-    int p;
     struct stat buf;
     char odbcconfig[MAX_PATH];
     char *ii_system;
@@ -1140,6 +1141,7 @@ static PyObject * IIDBI_connect(PyObject *self, PyObject *args,
         "dsn", "database", "vnode", "uid", "pwd", "autocommit", "selectloops",
         "servertype","driver","rolename","rolepwd", "group", "blankdate", "date1582", "catconnect", "numeric_overflow", "catschemanull", "dbms_pwd", "connectstr", "pooled", "trace", NULL
     };
+    /* The ODBC driver is restricted to the following server classes */
     static char *servertypes[] =
     {
         "INGRES", "DCOM", "IDMS", "DB2", "IMS", "VSAM", "RDB", "STAR", "RMS",
@@ -1147,6 +1149,7 @@ static PyObject * IIDBI_connect(PyObject *self, PyObject *args,
         "DB2UDB"
     };
     int servertypesLen = sizeof(servertypes) / sizeof(servertypes[0]);
+    char *tmp_servertype;
 
     if (!PyArg_ParseTupleAndKeywords(args, keywords, "|ssssssssssssssssssssO", kwlist, 
         &dsn, &database, &vnode, &username, &password, &autocommit,
@@ -1201,16 +1204,16 @@ static PyObject * IIDBI_connect(PyObject *self, PyObject *args,
     
             if (servertype)
             {
-                for (i = 0; i < (int)strlen(servertype); i++)
+                tmp_servertype = strdup(servertype);
+                for (i = 0; i < (int)strlen(tmp_servertype); i++)
                 {
-                    p = toupper(servertype[i]);
-                    servertype[i] = p;
+                    tmp_servertype[i] = toupper(tmp_servertype[i]);
                 }
                 for (i = 0; i < servertypesLen; i++)
                 {
-                    if (!strcmp(servertype, servertypes[i]))
+                    if (!strcmp(tmp_servertype, servertypes[i]))
                     {
-                        conn->servertype = strdup(servertype);
+                        conn->servertype = tmp_servertype;
                         break;
                     }
                 }
