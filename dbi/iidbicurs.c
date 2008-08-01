@@ -124,6 +124,10 @@
 **        DBI trace messages.
 **   20-may-2006 (Ralph.Loen@ingres.com)
 **        Added cursor.setinputsizes() and cursor.setoutputsize().
+**      30-Jul-2008 (clach04)
+**          Trac Ticket #243 - errors on bind ignored
+**          dbi_cursorExecute() failed to check (and report) errors on calls
+**          to BindParameters(). Added simple check.
 **/
 
 RETCODE BindParameters(IIDBI_STMT *pstmt, unsigned char isProc);
@@ -277,6 +281,8 @@ exitCloseCursor:
 **      22-Jul-2004 (raymond.fan@ca.com)
 **          For blobs where the last segment does not fall on a segment
 **          boundary include an increment of the data pointer.
+**      30-Jul-2008 (clach04)
+**          dbi_cursorExecute() now checks for failed calls to BindParameters()
 }*/
 
 RETCODE
@@ -415,6 +421,8 @@ dbi_cursorExecute( IIDBI_DBC* pdbc, IIDBI_STMT* pstmt, char *stmnt,
         }
         if (pstmt->parmCount)
             return_code = BindParameters(pstmt, isProc);
+        if (return_code != DBI_SQL_SUCCESS)
+            break;
 
         DBPRINTF(DBI_TRC_STAT)("Executing the query %s\n",stmnt);
 
