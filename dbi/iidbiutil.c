@@ -61,6 +61,10 @@ char* dbi_trcfile = NULL;
 **          Multiple traces running to standard error causes a problem.
 **          When tracing to standard error don't close the descriptor.
 **          Print fold marker for very first instance of trace start.
+**      30-Jul-2008 (clach04)
+**          Trac Ticket #160 - "No such file or directory" on disable trace
+**          dbi_trace() was returning an uninitialized variable causing
+**          crashes when Tracing was set to off "(0, None)".
 **/
 
 /*{
@@ -93,13 +97,15 @@ char* dbi_trcfile = NULL;
 **      16-Jul-2004 (raymond.fan@ca.com)
 **          Save the filename of the file that is opened.
 **          Keep a reference of open requests.
+**      30-Jul-2008 (clach04)
+**          Ensure ret_val is initialized before return.
 }*/
 short int
 dbi_trace( int dbglevel, char* trcfile )
 {
     FILE* fd;
     time_t ltime;
-    short int ret_val;
+    short int ret_val=TRUE;
 
     time( &ltime );
 
