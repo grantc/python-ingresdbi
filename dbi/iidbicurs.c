@@ -128,6 +128,11 @@
 **          Trac Ticket #243 - errors on bind ignored
 **          dbi_cursorExecute() failed to check (and report) errors on calls
 **          to BindParameters(). Added simple check.
+**      03-Dec-2008 (clach04)
+**          Trac Ticket #159 - SELECT of Unicode results are truncated
+**          Wrong (byte) length was being used.
+**          Removed newline from trace output, easier to parse single line
+**          trace files.
 **/
 
 RETCODE BindParameters(IIDBI_STMT *pstmt, unsigned char isProc);
@@ -656,8 +661,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
             case SQL_WCHAR:
                 rc = SQLGetData(pstmt->hdr.handle, i+1, SQL_C_WCHAR, 
                                      pstmt->descriptor[i]->data,
-                                     pstmt->descriptor[i]->precision + 
-                                     sizeof (SQLWCHAR),
+                                     pstmt->descriptor[i]->internalSize + sizeof (SQLWCHAR),
                                      &orind);
                 if (orind == SQL_NULL_DATA)
                     pstmt->descriptor[i]->isNull = 1;
@@ -1493,7 +1497,7 @@ dbi_allocData ( IIDBI_STMT *pstmt)
     
          for (i = 0; i < pstmt->descCount; i++)
          {
-	     dataLen = pstmt->descriptor[i]->precision;
+	     dataLen = pstmt->descriptor[i]->internalSize;
              switch (pstmt->descriptor[i]->type)
              {
              case SQL_LONGVARCHAR:
@@ -1511,7 +1515,7 @@ dbi_allocData ( IIDBI_STMT *pstmt)
  		 if ((pstmt->descriptor[i]->type == SQL_WCHAR) ||
 		     (pstmt->descriptor[i]->type == SQL_WVARCHAR))
 		 {
-		     dataLen += sizeof(SQLWCHAR);
+		     dataLen += sizeof(SQLWCHAR); /* TODO Is this needed? */
 		 }
                  pstmt->descriptor[i]->data = 
                      calloc(1, dataLen);
@@ -2016,7 +2020,7 @@ RETCODE dbi_describeColumns (IIDBI_STMT *pstmt)
                         pstmt->hdr.err.native);
             return return_code;
         }
-        DBPRINTF(DBI_TRC_STAT)("For Col %d, type is %d, name is %s, precision is %d, \n\tscale is %d display size is %d internal size is %d and nullable is %d\n", i, type, colName, precision, scale, displaySize, internalSize, nullable); 
+        DBPRINTF(DBI_TRC_STAT)("For Col %d, type is %d, name is %s, precision is %d, scale is %d display size is %d internal size is %d and nullable is %d\n", i, type, colName, precision, scale, displaySize, internalSize, nullable); 
          pstmt->descriptor[i]->scale = scale;
          pstmt->descriptor[i]->nullable = nullable;
          pstmt->descriptor[i]->columnName = calloc(1,cbColName + 1);
