@@ -1,4 +1,6 @@
 /*
+** vim:filetype=c:ts=4:sw=4:et:nowrap
+**
 ** Copyright (c) 2008 Ingres Corporation
 **
 ** This program is free software; you can redistribute it and/or modify
@@ -80,6 +82,10 @@
 **          Add selectloops connection attribute.
 **      26-jul-2005 (loera01)
 **          Add servertype connection attribute.
+**      18-Mar-2009 (clach04)
+**          Changed default ODBC driver name to use from
+**          "INGRES 3.0" to "INGRES". This means the default Ingres
+**          ODBC driver really will be used.
 **/
 
 /*{
@@ -275,7 +281,7 @@ dbi_connect( IIDBI_DBC *pdbc)
             }
             else if (!conn->driver)
             {
-                sprintf(szConnStrIn, "%s", "DRIVER=INGRES 3.0;");
+                sprintf(szConnStrIn, "%s", "DRIVER=INGRES;");
             }
             else if (conn->driver && *conn->driver)
             {
