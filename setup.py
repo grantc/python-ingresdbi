@@ -20,6 +20,7 @@ from distutils.core import setup, Extension
 import os
 import sys
 import re
+from glob import glob
 
 """
  History
@@ -86,6 +87,10 @@ import re
     06-May-2008 (grant.croker@ingres.com)
         Added Trove tags, the trove classification for distutils is documented in PEP 301
         http://www.python.org/dev/peps/pep-0301/
+    04-Aug-2009 (Chris.Clark@ingres.com)
+        Updated Trove tags with new maintainer.
+        Updated so that sdist now includes the headers so that sdist
+        produced tarballs can be built.
 
  Known Issues
 
@@ -175,17 +180,24 @@ if platform=="win32":
 
     The "sources" section below could be replaced with a static MANIFEST.IN
     file, but at the moment we are leaving all the build logic in one file,
-    and the MANIFEST file gets created dynamically.  Note that if one changes
-    the contents of setup.py, the MANIFEST file needs to be deleted.  Note
+    and the MANIFEST file gets created dynamically, by distutils. 
+    The MANIFEST.in is generated semi-dynamically from this script. 
+    Note that if one changes the contents of setup.py, the MANIFEST file
+    needs to be deleted.  Note
     also that MANIFEST is a Jam file as well, so Jam needs to be taught to
     ignore the pydbi directory entirely.
 
 """
+if os.path.exists('MANIFEST'):
+    os.unlink('MANIFEST')
+MANIFEST_in=open('MANIFEST.in', 'w')
+MANIFEST_in.write('recursive-include hdr *.h\n')
+MANIFEST_in.close()
+# rest of the source is handled by distutils.code.Extension
+# Extension does not handle include files.
+
 ingresdbi=Extension("ingresdbi",
-    sources=["dbi/iidbiconn.c",
-        "dbi/iidbicurs.c",
-        "dbi/iidbiutil.c",
-        "dbi/ingresdbi.c"],
+    sources=glob("dbi/*.c"),
     include_dirs=[ii_system_files,"hdr/"],
     define_macros=defmacros,
     library_dirs=[ii_system_lib],
@@ -197,8 +209,8 @@ setup(
     url="http://ingres.com",
     author="Ralph Loen",
     author_email="Ralph.Loen@ingres.com",
-    maintainer="Grant Croker",
-    maintainer_email="grant.croker@ingres.com",
+    maintainer="Chris Clark",
+    maintainer_email="Chris.Clark@ingres.com",
     license="GPL",
     description="Ingres DBI 2.0 Python Driver",
     long_description="""
@@ -227,5 +239,5 @@ ingresdbi is licensed under the `GPL v2`_
         'Classifier: Topic :: Database',
         'Classifier: Topic :: Database :: Database Engines/Servers',
         ],
-    download_url="http://ingres.com/downloads/connectivity-resources.php",
+    download_url="http://ingres.com/",
     ),
