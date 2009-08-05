@@ -196,6 +196,16 @@
 **        Added cursor.setinputsizes() and cursor.setoutputsize().  
 **   31-may-2006 (Ralph.Loen@ingres.com)
 **        Added documentation for methods and functions.
+**  04-Aug-2009 (Chris.Clark@ingres.com)
+**      Removed compile warnings:
+**        dbi/ingresdbi.c:217: warning: function declaration isn't a prototype
+**        dbi/ingresdbi.c:223: warning: function declaration isn't a prototype
+**        dbi/ingresdbi.c:245: warning: function declaration isn't a prototype
+**        dbi/ingresdbi.c:1361: warning: function declaration isn't a prototype
+**        dbi/ingresdbi.c:1533: warning: function declaration isn't a prototype
+**      Reported by GCC 4.2.4 with Python 2.4. Defaults to -Wstrict-prototypes
+**      Added explict void to functions prototypes that take input parameters.
+**      Alternative is to simply use -Wno-strict-prototypes
 **/
 
 static PyObject *IIDBI_Warning;
@@ -214,13 +224,13 @@ static PyObject * IIDBI_connect(PyObject *self, PyObject *args,
     PyObject *keywords);
 static PyObject * IIDBI_binary(PyObject *self, PyObject *args);
 static PyObject *IIDBI_connCursor(IIDBI_CONNECTION *);
-static IIDBI_CONNECTION *IIDBI_connConstructor();
+static IIDBI_CONNECTION *IIDBI_connConstructor(void);
 static void IIDBI_connDestructor(IIDBI_CONNECTION *self);
 static int IIDBI_connPrint(IIDBI_CONNECTION *self, FILE *fp, int flags);
 static PyObject *IIDBI_connCommit(IIDBI_CONNECTION *self);
 static PyObject *IIDBI_connRollback(IIDBI_CONNECTION *self);
 static PyObject *IIDBI_connClose(IIDBI_CONNECTION *self);
-static IIDBI_CURSOR *IIDBI_cursorConstructor();
+static IIDBI_CURSOR *IIDBI_cursorConstructor(void);
 static PyObject *IIDBI_cursorExecute(IIDBI_CURSOR *self, PyObject *args);
 static PyObject *IIDBI_cursorExecuteMany(IIDBI_CURSOR *self, PyObject *args);
 static PyObject *IIDBI_cursorFetch(IIDBI_CURSOR *self);
@@ -242,7 +252,7 @@ static PyObject * IIDBI_timeStampFromTicks(PyObject *self, PyObject *args);
 static PyObject * IIDBI_cursorIterator(IIDBI_CURSOR *self);
 static PyObject * IIDBI_cursorIterNext(IIDBI_CURSOR *self);
 
-PyMODINIT_FUNC SQL_API initingresdbi();
+PyMODINIT_FUNC SQL_API initingresdbi(void);
 int IIDBI_cursorCleanup(IIDBI_CURSOR *self);
 void IIDBI_connCleanup(IIDBI_CONNECTION * self);
 static void IIDBI_cursorDestructor(IIDBI_CURSOR *self);
