@@ -37,6 +37,8 @@
 **          Python type.
 **      07-Jan-2004 (Ralph.Loen@ca.com)
 **          Added dbi_freeData().
+**      05-Aug-2009 (Chris.Clark@ingres.com)
+**          Removed unused dbi_cursorFetchall()
 **/
 
 #ifndef __IIDBI_CURS_H_INCLUDED
@@ -66,9 +68,6 @@ dbi_freeDescriptor(IIDBI_STMT *pstmt, unsigned char isParam);
 
 extern RETCODE
 dbi_cursorFetchone( IIDBI_STMT *pstmt );
-
-extern RETCODE
-dbi_cursorFetchall( IIDBI_STMT *pstmt );
 
 extern RETCODE 
 dbi_describeColumns (IIDBI_STMT *pstmt);

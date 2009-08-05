@@ -34,7 +34,6 @@
 ** 	 dbi_cursorClose() Close the cursor.
 ** 	 dbi_cursorExecute() Prepare and execute a statement with vargs.
 ** 	 dbi_cursorFetchone() Fetch one row from a cursor.
-** 	 dbi_cursorFetchall() Fetch all rows from a cursor.
 ** 		
 **)E
 **
@@ -133,6 +132,8 @@
 **          Wrong (byte) length was being used.
 **          Removed newline from trace output, easier to parse single line
 **          trace files.
+**      05-Aug-2009 (Chris.Clark@ingres.com)
+**          Removed unused dbi_cursorFetchall()
 **/
 
 RETCODE BindParameters(IIDBI_STMT *pstmt, unsigned char isProc);
@@ -1230,38 +1231,6 @@ IIDBI_DESCRIPTOR *dbi_getDescriptor ( IIDBI_STMT *pstmt, int colNbr,
     if (!pstmt->descriptor )
         return 0;
     return pstmt->descriptor[colNbr];
-}
-
-/*{
-** Name: dbi_cursorFetchall - Fetch all rows from a statement
-**
-** Description:
-**     Fetch all (remaining) rows returned from a statement
-**
-** Inputs:
-**     None.
-**
-** Outputs:
-**     Returns the tuples
-**     Returns:
-** 	   Tuple structure
-**
-**     Exceptions:
-**         An error is raised if the previous call to executeXXX() did
-**         not produce any result set or no call was issued yet.
-**
-** Side Effects:
-**
-** History:
-**     08-Jul-2004 (peeje01)
-**         Created.
-}*/
-RETCODE
-dbi_cursorFetchall( IIDBI_STMT *pstmt )
-{
-    DBPRINTF(DBI_TRC_ENTRY)("%p: dbi_cursorFetchall {{{1\n", pstmt);
-    DBPRINTF(DBI_TRC_ENTRY)("%p: dbi_cursorFetchall }}}1\n", pstmt);
-    return(DBI_SQL_SUCCESS);
 }
 
 /*{
