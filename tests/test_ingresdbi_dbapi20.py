@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: ascii -*-
+# vim:ts=4:sw=4:softtabstop=4:smarttab:expandtab
 """
  Test script for the Ingres Python DBI based on test_psycopg_dbapi20.py.
  Uses dbapi20.py version 1.10 obtained from
@@ -9,6 +11,14 @@
         Created
     06-May-2008
         Added the detection/creation of the procedure 'lower' to setUp
+    05-Aug-2009 (Chris.Clark@ingres.com)
+        Tests all failed on new machine with no arguments.
+        Create database had bad argument order (failed with Ingres 9.1.1, 9.2).
+        The name of the database to be created is now picked up from arguments.
+        New database is created with Unicode support, NFC normalization.
+        Many tests created warnings about access to attrbutes:, e.g.:
+            Warning: DB-API extension connection.Warning used
+            Warning: DB-API extension connection.Error used
 """
 import dbapi20
 import unittest
@@ -16,6 +26,7 @@ import ingresdbi
 import popen2
 import re
 import os
+import warnings
 
 """
 
@@ -62,6 +73,13 @@ else:
     traceLevel = 0
 traceFile=os.getenv('test_trace_file')
 
+# Not sure about this!!!!
+warnings.warn('FIXME Filtering of warnings enabled! This should be checked.')
+warnings.simplefilter('ignore', Warning)
+## We have an odd behavior, e.g. accessing connection.Warning, see dbapi20.py:210. pysqlite2 does not have this
+## oddly, setting warnings to ERRORS, silences Ingres but not sqlite!
+
+
 class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
     driver = ingresdbi
     connect_args = ()
@@ -94,6 +112,8 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
         # future
         dbapi20.DatabaseAPI20Test.setUp(self) 
 
+        dbname = self.connect_kw_args['database']
+
         try:
             con = self._connect()
             try:
@@ -105,12 +125,17 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
                     con.commit()
                 con.close()
             except:
+                print 'FIXME bare except hit with PASS'
                 pass
         except:
-            cmd = "createdb -fnofeclients dbapi20_test"
+            print 'FIXME bare except hit'
+            cmd = "createdb -i %s -f nofeclients" % dbname
             cout,cin = popen2.popen2(cmd)
             cin.close()
-            cout.read()
+            createdb_output=cout.read()
+            if 'E_' in createdb_output:
+                print createdb_output
+                raise SystemExit()
 
     def tearDown(self):
         dbapi20.DatabaseAPI20Test.tearDown(self)
