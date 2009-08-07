@@ -206,6 +206,14 @@
 **      Reported by GCC 4.2.4 with Python 2.4. Defaults to -Wstrict-prototypes
 **      Added explict void to functions prototypes that take input parameters.
 **      Alternative is to simply use -Wno-strict-prototypes
+**  07-Aug-2009 (Chris.Clark@ingres.com)
+**      Ingres Bugs bug# 121611 Trac ticket:403
+**      Error (and Cpython exits):
+**              Fatal Python error: deallocating None
+**      After fetch'ing None/NULL values.
+**      Added correct counter increment to Py_None
+**      simplified NULL logic into one place by
+**      removing duplicate code.
 **/
 
 static PyObject *IIDBI_Warning;
@@ -4354,129 +4362,85 @@ static PyObject *IIDBI_cursorFetch(IIDBI_CURSOR *self)
 
     for (i = 0; i < IIDBIpstmt->descCount; i++)
     {
-        switch (descriptor[i]->type)
+        if (descriptor[i]->isNull)
         {
-        case SQL_BIGINT:
-            n = *(ODBCINT64 *)descriptor[i]->data;
-            if (descriptor[i]->isNull)
-            {
-                PyTuple_SetItem(row, i, Py_None);
-            }
-            else
-                PyTuple_SetItem(row, i, PyLong_FromLongLong(n));
-            break;
-
-        case SQL_INTEGER:
-            j = *(SQLINTEGER *)descriptor[i]->data;
-            m = (long)j;
-            if (descriptor[i]->isNull)
-            {
-                PyTuple_SetItem(row, i, Py_None);
-            }
-            else
-                PyTuple_SetItem(row, i, PyInt_FromLong(m));
-            break;
-
-         case SQL_SMALLINT:
-            k = *(SQLSMALLINT *)descriptor[i]->data;
-            m = (long)k;
-            if (descriptor[i]->isNull)
-            {
-                PyTuple_SetItem(row, i, Py_None);
-            }
-            else
-                PyTuple_SetItem(row, i, PyInt_FromLong(m));
-            break;
-
-        case SQL_TINYINT:
-            l = *(SQLCHAR *)descriptor[i]->data;
-            m = (long)l;
-            if (descriptor[i]->isNull)
-            {
-                PyTuple_SetItem(row, i, Py_None);
-            }
-            else
-                PyTuple_SetItem(row, i, PyInt_FromLong(m));
-            break;
-  
-        case SQL_FLOAT:
-        case SQL_REAL:
-        case SQL_DOUBLE:
-            if (descriptor[i]->isNull)
-            {
-                PyTuple_SetItem(row, i, Py_None);
-            }
-            else
-                PyTuple_SetItem(row, i,
-                    PyFloat_FromDouble(*(double *)descriptor[i]->data));
-            break;
-
-        case SQL_TYPE_TIME:
-        case SQL_TYPE_TIMESTAMP:
-        case SQL_TYPE_DATE:
-        case SQL_DATE:
-        case SQL_TIME:
-        case SQL_TIMESTAMP:
-        {
-            if (descriptor[i]->isNull)
-            {
-                PyTuple_SetItem(row, i, Py_None);
-            }
-            else
-            {
-              ts = (SQL_TIMESTAMP_STRUCT *)descriptor[i]->data;
-
-              PyTuple_SetItem(row, i,
-                  (PyObject *)PyDateTime_FromDateAndTime( ts->year,
-                  ts->month, ts->day, ts->hour, ts->minute, ts->second,
-                  ts->fraction));
-            }
-            break;
+            Py_INCREF(Py_None);
+            PyTuple_SetItem(row, i, Py_None);
         }
-        case SQL_LONGVARCHAR:
-        case SQL_LONGVARBINARY:
-            if (descriptor[i]->isNull)
+        else
+        {
+            switch (descriptor[i]->type)
             {
-                PyTuple_SetItem(row, i, Py_None);
-            }
-            else
-                PyTuple_SetItem(row, i, (PyObject *)
-                    PyString_FromStringAndSize( descriptor[i]->data, 
-                         descriptor[i]->precision));
-            break;
+            case SQL_BIGINT:
+                n = *(ODBCINT64 *)descriptor[i]->data;
+                PyTuple_SetItem(row, i, PyLong_FromLongLong(n));
+                break;
 
-        case SQL_WCHAR:
-        case SQL_WVARCHAR:
-        case SQL_WLONGVARCHAR:
-            if (descriptor[i]->isNull)
-            {
-                PyTuple_SetItem(row, i, Py_None);
-            }
-            else
-                  PyTuple_SetItem(row, i, (PyObject *)
-                    PyUnicode_Decode((const char *)descriptor[i]->data, 
-                    (int)wcslen(descriptor[i]->data)*sizeof(SQLWCHAR),
-                    "utf_16","strict"));
-            break;
-		case SQL_DECIMAL:
-			if (descriptor[i]->isNull)
-			{
-				PyTuple_SetItem(row, i, Py_None);
-			}
-			else
-				PyTuple_SetItem(row, i, 
-				    (PyObject *)PyObject_CallFunction(decimalType, "s", descriptor[i]->data));
-			    break;
+            case SQL_INTEGER:
+                j = *(SQLINTEGER *)descriptor[i]->data;
+                m = (long)j;
+                PyTuple_SetItem(row, i, PyInt_FromLong(m));
+                break;
 
-        default:
-            if (descriptor[i]->isNull)
+             case SQL_SMALLINT:
+                k = *(SQLSMALLINT *)descriptor[i]->data;
+                m = (long)k;
+                PyTuple_SetItem(row, i, PyInt_FromLong(m));
+                break;
+
+            case SQL_TINYINT:
+                l = *(SQLCHAR *)descriptor[i]->data;
+                m = (long)l;
+                PyTuple_SetItem(row, i, PyInt_FromLong(m));
+                break;
+      
+            case SQL_FLOAT:
+            case SQL_REAL:
+            case SQL_DOUBLE:
+                PyTuple_SetItem(row, i,
+                        PyFloat_FromDouble(*(double *)descriptor[i]->data));
+                break;
+
+            case SQL_TYPE_TIME:
+            case SQL_TYPE_TIMESTAMP:
+            case SQL_TYPE_DATE:
+            case SQL_DATE:
+            case SQL_TIME:
+            case SQL_TIMESTAMP:
             {
-                PyTuple_SetItem(row, i, Py_None);
+                  ts = (SQL_TIMESTAMP_STRUCT *)descriptor[i]->data;
+
+                  PyTuple_SetItem(row, i,
+                      (PyObject *)PyDateTime_FromDateAndTime( ts->year,
+                      ts->month, ts->day, ts->hour, ts->minute, ts->second,
+                      ts->fraction));
+                break;
             }
-            else
+            case SQL_LONGVARCHAR:
+            case SQL_LONGVARBINARY:
+                    PyTuple_SetItem(row, i, (PyObject *)
+                        PyString_FromStringAndSize( descriptor[i]->data, 
+                             descriptor[i]->precision));
+                break;
+
+            case SQL_WCHAR:
+            case SQL_WVARCHAR:
+            case SQL_WLONGVARCHAR:
+                      PyTuple_SetItem(row, i, (PyObject *)
+                        PyUnicode_Decode((const char *)descriptor[i]->data, 
+                        (int)wcslen(descriptor[i]->data)*sizeof(SQLWCHAR),
+                        "utf_16","strict"));
+                break;
+            case SQL_DECIMAL:
+                    PyTuple_SetItem(row, i, 
+                        (PyObject *)PyObject_CallFunction(decimalType, "s", descriptor[i]->data));
+                    break;
+
+            default:
                 PyTuple_SetItem(row, i, 
                     PyString_FromString(descriptor[i]->data));
-            break;
+                break;
+            }
         }
     }
 
