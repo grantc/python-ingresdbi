@@ -16,9 +16,16 @@
         Create database had bad argument order (failed with Ingres 9.1.1, 9.2).
         The name of the database to be created is now picked up from arguments.
         New database is created with Unicode support, NFC normalization.
-        Many tests created warnings about access to attrbutes:, e.g.:
+        Many tests created warnings about access to attributes:, e.g.:
             Warning: DB-API extension connection.Warning used
             Warning: DB-API extension connection.Error used
+    06-Aug-2009 (Chris.Clark@ingres.com)
+        Added template for easy copy/paste of new tests.
+        Added bug script for Ingres Bugs bug# 121611 Trac ticket:403
+         - Fatal Python error: deallocating None
+        Added bug script for Trac ticket:255 - embedded nulls are lost
+        Added (not yet running/enabled) bug script for Trac ticket:260
+         - microsecs on selects of (ansi) timestamps are incorrect
 """
 import dbapi20
 import unittest
@@ -26,7 +33,10 @@ import ingresdbi
 import popen2
 import re
 import os
+import sys
 import warnings
+import datetime
+import gc # CPython specific.....
 
 """
 
@@ -74,11 +84,29 @@ else:
 traceFile=os.getenv('test_trace_file')
 
 # Not sure about this!!!!
+warnings.warn('FIXME Hang with: ./test_ingresdbi_dbapi20.py -v test_Ingresdbi.NOtest_bugTimestampMicrosecs test_Ingresdbi.test_cursorIter')
 warnings.warn('FIXME Filtering of warnings enabled! This should be checked.')
 warnings.simplefilter('ignore', Warning)
 ## We have an odd behavior, e.g. accessing connection.Warning, see dbapi20.py:210. pysqlite2 does not have this
 ## oddly, setting warnings to ERRORS, silences Ingres but not sqlite!
 
+
+def dropTable(c, tablename):
+    """Simple drop table wrapper that ignores "table does not exist" errors. Warning: Not sql injection safe.
+        c = cursor
+        tablename = string containing name only
+
+    Does not handle quote names (unless they are already quoted).
+    
+DataError: (3, 2753, '42500', "[Ingres][NGRES ODBC Driver][NGRES]DROP: 'myblob' does not exist or is not owned by you.", 'drop table myBlob')
+    """
+    try:
+        sql_string = 'drop table %s' % tablename
+        c.execute(sql_string)
+    except ingresdbi.DataError, info:
+        sqlstate=repr(info.args[2])
+        if sqlstate != "'42500'": # this looks buggy.. string with quotes as part of data?
+            raise
 
 class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
     driver = ingresdbi
@@ -448,6 +476,152 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
         self.con.close()
 
         """ End of Ingres custom tests """
+    
+    ###############################################################
+    # Start of Ingres bug/regression tests
+
+    def test_bugPyNoneTooManyFrees(self):
+        """Trac ticket:403 Bug 121611 - PyNone multiple (too many) frees/decrefs, opposite of a memory-leak.
+        Error from Python interpreter:
+            Fatal Python error: deallocating None
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        # type is not really that important (all types appear to free too many times), using ints to have a specific type to test
+        sql_query = "select int4(NULL), int4(NULL), int4(NULL), int4(NULL), int4(NULL), int4(NULL), char(NULL), varchar(NULL), date(NULL), float4(NULL),  float8(NULL), decimal(NULL, 30, 5) from iidbconstants"
+        # 'note ref count dips below original/start'
+        number_of_selects=1 ## this won't crash but is enough to see None refcount go down
+        number_of_selects=200 ## this should cause the crash
+        pynone_count_fuzzy=2 # not yet sure what a reasonably fuzz factor is, ideally zero
+        gc.collect() # force garbarge collection, may not be needed. Be Safe.
+        count_pre_loop=sys.getrefcount(None)
+        for x in range(number_of_selects):
+            count_pre_execute=sys.getrefcount(None)
+            self.curs.execute(sql_query)
+            count_pre_fetchall=sys.getrefcount(None)
+            rs = self.curs.fetchall()
+            count_post_fetchall=sys.getrefcount(None)
+            del rs
+            gc.collect()
+            count_post_delfetchall=sys.getrefcount(None)
+            self.assert_(pynone_count_fuzzy >= count_pre_execute-count_post_delfetchall, 'appear to have a PyNone refcount problem %r >= %r - %r' % (pynone_count_fuzzy, count_pre_execute, count_post_delfetchall))
+        gc.collect()
+        count_post_loop=sys.getrefcount(None)
+        self.assert_(pynone_count_fuzzy >= count_pre_loop-count_post_loop, 'appear to have a PyNone refcount problem %r >= %r - %r' % (pynone_count_fuzzy, count_pre_execute, count_post_delfetchall))
+        
+        self.curs.close()
+        self.con.close()
+
+    def test_bug_Embedded_Nulls(self):
+        """Trac ticket:255 - embedded nulls are lost
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        sql_query=r"""select
+    length(U&'x\0000y') as length_unicode,
+    hex(U&'x\0000y') as hex_unicode, 
+    length(varchar(U&'x\0000y')) as length_singlebyte, 
+    hex(varchar(U&'x\0000y')) as hex_singlebyte
+from iidbconstants
+        """ # sample SQL to run in TM
+        sql_query=r"""select
+    length(U&'x\0000y') as length_unicode,
+    U&'x\0000y' as hex_unicode, 
+    length(varchar(U&'x\0000y')) as length_singlebyte, 
+    varchar(U&'x\0000y') as hex_singlebyte
+from iidbconstants
+        """ # NOTE need 9.1.2 or later (problems with older/pre-patched versions)
+        #expected_value=u'x\u0000y' # NOTE not Python 3.x compatible....
+        expected_value='x\x00y' # should be Python 2.x and 3.x compatible
+        self.curs.execute(sql_query)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assert_(rs[1] == expected_value)
+        self.assert_(rs[0] == len(rs[1]))
+        self.assert_(rs[3] == expected_value)
+        self.assert_(rs[2] == len(rs[3]))
+
+        self.curs.close()
+        self.con.close()
+    
+    ## FIXME needs to be enabled (and debugged)
+    def NOtest_bugTimestampMicrosecs(self):
+        """Trac ticket:260 - microsecs on selects of (ansi) timestamps are incorrect
+        WARNING having this test present appears to hang the test suite
+        at test test_cursorIter :-( e.g.:
+
+            ./test_ingresdbi_dbapi20.py -v test_Ingresdbi.NOtest_bugTimestampMicrosecs test_Ingresdbi.test_cursorIter
+
+        Will run this test firs and then test_cursorIter which hangs and never completes.
+
+        but runs OK standalone:
+
+            ./test_ingresdbi_dbapi20.py test_Ingresdbi.NOtest_bugTimestampMicrosecs
+
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        expected_value=datetime.datetime(2008, 9, 18, 12, 42, 45, 899000)
+        sql_query = "select expire_date, varchar(expire_date) from pytimestampbug"
+        dropTable(self.curs, 'pytimestampbug')
+        self.curs.execute("create table pytimestampbug(expire_date timestamp)")
+
+        # insert bind param test case
+        self.curs.execute("delete from pytimestampbug")
+        self.curs.execute("insert into pytimestampbug(expire_date) values (?)", (expected_value,))
+        self.curs.execute(sql_query)
+        row=self.curs.fetchone()
+        dateval = row[0]
+        #dateval = expected_value # dumb test for debugging, if this is uncommented test_cursorIter() completes
+        self.assert_(expected_value == dateval)
+        
+        # Original bug test case
+        self.curs.execute("delete from pytimestampbug")
+        self.curs.execute("insert into pytimestampbug(expire_date) values ('2008-09-18 12:42:45.899000')")
+        self.curs.execute(sql_query)
+        row=self.curs.fetchone()
+        dateval = row[0]
+        #dateval = expected_value # dumb test for debugging, if this is uncommented test_cursorIter() completes
+        self.assert_(expected_value == dateval)
+        
+        self.curs.close()
+        self.con.close()
+    
+    '''
+    not actually abug by the looks of it
+    def test_bugSelectLob(self):
+        """Trac ticket:161 - fetch after insert (i.e. no select) - what is the expected behavior?
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        blob = 'x' * 1255130
+        #self.curs.execute("drop table myBlob")
+        dropTable(self.curs, 'myBlob')
+        self.curs.execute("create table myBlob(blobCol long byte)")
+        self.curs.execute("insert into myBlob values(?)", (ingresdbi.Binary(blob),))
+        #self.curs.execute("select * from myBlob")
+        rs = self.curs.fetchall() # issue fetch after an insert
+        
+        self.curs.close()
+        self.con.close()
+    '''
+
+    '''
+    def test_TemplateCopyPasteMe(self):
+        """Template test description fill me in
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        # tests go here
+        
+        self.curs.close()
+        self.con.close()
+    '''
 
 if __name__ == '__main__':
     unittest.main()
