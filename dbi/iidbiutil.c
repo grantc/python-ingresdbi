@@ -1,4 +1,5 @@
 /*
+** vim:filetype=c:ts=4:sw=4:et:nowrap 
 ** Copyright (c) 2008 Ingres Corporation
 **
 ** This program is free software; you can redistribute it and/or modify
@@ -65,6 +66,10 @@ char* dbi_trcfile = NULL;
 **          Trac Ticket #160 - "No such file or directory" on disable trace
 **          dbi_trace() was returning an uninitialized variable causing
 **          crashes when Tracing was set to off "(0, None)".
+**      19-Aug-2009 (Chris.Clark@ingres.com)
+**          Fixed issue with tracing to file, every other trace message
+**          was lost due to if-then block of code ALWAYS being ran due
+**          to short cut on IF check (trailing semi-colon).
 **/
 
 /*{
@@ -351,7 +356,7 @@ dbi_format( char* fmt, ... )
     {        
         if (dbi_dbgfd == NULL)
         {
-            if ((dbi_dbgfd = fopen( dbi_trcfile, "a" )) == NULL);
+            if ((dbi_dbgfd = fopen( dbi_trcfile, "a" )) == NULL)
             {
                 ret_val = FALSE;
                 goto dbi_format_end;

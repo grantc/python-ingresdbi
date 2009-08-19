@@ -44,6 +44,8 @@
         Cleaned up createdb failure code.
         Cleaned up procedure creation/check code.
         Added Unicode check.
+    19-Aug-2009 (Chris.Clark@ingres.com)
+        Tracing information was not being passed to the driver correctly.
 """
 import dbapi20
 import unittest
@@ -149,8 +151,7 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
     if pooled != None:
         connect_kw_args.setdefault('pooled', pooled)
         trace=(traceLevel, traceFile)
-    else:
-        trace=(0, None)
+    trace=(traceLevel, traceFile)
     connect_kw_args.setdefault('trace',trace)
     table_prefix = 'dbapi20test_' # If you need to specify a prefix for tables
 
