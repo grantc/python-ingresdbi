@@ -39,6 +39,11 @@
             test_decimalCrash
             test_SimpleUnicodeSelect
             NOtest_SimpleUnicodeBind - disabled
+    19-Aug-2009 (Chris.Clark@ingres.com)
+        Fixed all of the bare excepts.
+        Cleaned up createdb failure code.
+        Cleaned up procedure creation/check code.
+        Added Unicode check.
 """
 import dbapi20
 import unittest
@@ -152,6 +157,13 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
     lower_func = 'lower' # For stored procedure test
 
     def setUp(self):
+        # NOTE using Python unittest, setUp() is called before EACH and every
+        # test. There is no single setup routine hook (other than hacking init,
+        # module main, etc.). Setup is done here in case an external test 
+        # suite runner is used (e.g. nose, py.test, etc.). So far all the 
+        # setup implemented here is single setup that only needs to be done
+        # once at the start of the complete test run.
+        #
         # Call superclass setUp In case this does something in the
         # future
         dbapi20.DatabaseAPI20Test.setUp(self) 
@@ -160,26 +172,36 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
 
         try:
             con = self._connect()
-            try:
-                # Do we have a procedure called lower? 
-                cur=con.cursor()
-                cur.execute("select procedure_name from iiprocedures where procedure_name = 'lower'")
-                if len(cur.fetchall()) == 0:
-                    cur.execute("create procedure lower( a varchar(20) not null) result row (varchar(20)) as declare x=varchar(20) not null; begin select lower(a) into x; return row(x); end")
-                    con.commit()
-                con.close()
-            except:
-                print 'FIXME bare except hit with PASS'
-                pass
-        except:
-            print 'FIXME bare except hit'
+        except ingresdbi.DataError:
             cmd = "createdb -i %s -f nofeclients" % dbname
             cout,cin = popen2.popen2(cmd)
             cin.close()
             createdb_output=cout.read()
             if 'E_' in createdb_output:
-                print createdb_output
-                raise SystemExit()
+                self.fail('createdb failed\n'+createdb_output)
+            # retry connect
+            con = self._connect()
+
+        # Do we have a procedure called lower? 
+        cur=con.cursor()
+        cur.execute("select procedure_name from iiprocedures where procedure_name = 'lower'")
+        if len(cur.fetchall()) == 0:
+            cur.execute("""create procedure lower( a varchar(20) not null)
+                            result row (varchar(20))
+                            as 
+                                declare x=varchar(20) not null; 
+                            begin 
+                                select lower(a) into x; 
+                                return row(x); 
+                            end""")
+            con.commit()
+
+        # check we have the expected type of Unicode support.
+        sql_query = "select DBMSINFO('UNICODE_NORMALIZATION') from iidbconstants"
+        cur.execute(sql_query)
+        rs = cur.fetchone()
+        self.assertEqual(rs[0], 'NFC', 'Test database "%s" needs to use NFC UNICODE_NORMALIZATION (i.e. "createdb -i ...")' % dbname) # this probably should be made more obvious in the error output!
+        con.close()
 
     def tearDown(self):
         dbapi20.DatabaseAPI20Test.tearDown(self)
