@@ -1,4 +1,5 @@
 /*
+** vim:filetype=c:ts=4:sw=4:et:nowrap 
 ** Copyright (c) 2008 Ingres Corporation
 **
 ** This program is free software; you can redistribute it and/or modify
@@ -214,6 +215,12 @@
 **      Added correct counter increment to Py_None
 **      simplified NULL logic into one place by
 **      removing duplicate code.
+**  19-Aug-2009 (Chris.Clark@ingres.com)
+**      Compile warnings clean up of "unreferenced local variable" (win32
+**      specific).
+**      Set accurate decimal precision/scale/internalSize information
+**      for bind parameters.
+**      Added trace information for bind parameters as they are processed.
 **/
 
 static PyObject *IIDBI_Warning;
@@ -1151,9 +1158,11 @@ static PyObject * IIDBI_connect(PyObject *self, PyObject *args,
     RETCODE rc=DBI_SQL_SUCCESS;
     int i;
     int result = FALSE;
+#ifndef WIN32
     struct stat buf;
     char odbcconfig[MAX_PATH];
     char *ii_system;
+#endif /* WIN32 */
     static char *kwlist[] = 
     {
         "dsn", "database", "vnode", "uid", "pwd", "autocommit", "selectloops",
@@ -6200,17 +6209,35 @@ int IIDBI_sendParameters(IIDBI_CURSOR *self, PyObject *params)
         else if (PyObject_IsInstance(elem, decimalType))
         {
             char *decimal = NULL;
+            char *tmp_str = NULL;
             parameter[i]->data = 
                 strdup(PyString_AsString(PyObject_Str(elem)));
+            if (parameter[i]->data == NULL)
+            {
+                Py_XDECREF(params);
+                exception = IIDBI_InternalError;
+                errMsg = "strdup returned NULL";
+                result = IIDBI_handleError((PyObject *)self, exception, errMsg);
+                goto errorExit;
+            }
             parameter[i]->type = SQL_DECIMAL;
             parameter[i]->cType = SQL_C_CHAR;
-            parameter[i]->precision =
-                (int)strlen((char *)parameter[i]->data);
+            parameter[i]->internalSize = (int)strlen((char *)parameter[i]->data) + 1; /* +1 for NULL terminator */
+            tmp_str = (char *)parameter[i]->data;
+            /* Ignore leading signs and leading zeros */
+            while (*tmp_str!='\0' && (*tmp_str=='-' || *tmp_str=='0')) /* check for '+' too? Not seen one before */
+            {
+                tmp_str++;
+            }
+            parameter[i]->precision = (int)strlen(tmp_str);
             decimal = strstr(parameter[i]->data,".");
             if (!decimal)
                 decimal = strstr(parameter[i]->data, ",");
             if (decimal)
+            {
                 decimal++;
+                parameter[i]->precision--; /* do not count decimal seperator as part of precision */
+            }
             if (decimal)
                 parameter[i]->scale = (int)strlen(decimal);
             else
@@ -6227,6 +6254,7 @@ int IIDBI_sendParameters(IIDBI_CURSOR *self, PyObject *params)
             goto errorExit;
         }
         Py_DECREF(elem);
+        DBPRINTF(DBI_TRC_STAT)("For bind %d, type is %d (cType is %d), precision is %d, scale is %d internal size is %d and nullable is %d\n", i, parameter[i]->type, parameter[i]->cType, parameter[i]->precision, parameter[i]->scale, parameter[i]->internalSize, parameter[i]->isNull);
     } /* for (i = 0; i < parmCount; i++) */
 
     DBPRINTF(DBI_TRC_RET)("%p: IIDBI_sendParameters }}}1\n", self);

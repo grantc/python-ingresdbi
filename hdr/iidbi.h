@@ -1,4 +1,5 @@
 /*
+** vim:filetype=c:ts=4:sw=4:et:nowrap
 ** Copyright (c) 2008 Ingres Corporation
 **
 ** This program is free software; you can redistribute it and/or modify
@@ -267,14 +268,14 @@ typedef struct
 typedef struct _IIDBI_DESCRIPTOR
 {
     char            *columnName;
-    int             type;
-    int             cType;
+    int             type;  /* ODBC DBMS type */
+    int             cType; /* The ODBC C type used for "transport" */
     int 	    precision;
     int 	    scale;
     void            *data;
     int             nullable;
     int             displaySize;
-    int             internalSize;
+    int             internalSize; /* Used for internal memory malloc */
     unsigned char   isNull;
     long            orInd;
 } IIDBI_DESCRIPTOR; 
