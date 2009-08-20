@@ -46,10 +46,18 @@
         Added Unicode check.
     19-Aug-2009 (Chris.Clark@ingres.com)
         Tracing information was not being passed to the driver correctly.
+    20-Aug-2009 (Chris.Clark@ingres.com)
+        Added JDBC/Jython support. Requires jython2.5.0 (older releases
+        of Jython have not been tested).
+        Added logic to drop table to handle JDBC.
+        Cleaned up sqlstate check for IngresDBI in drop table.
+        Cleaned up spurious trace setting line in pooled check.
+        Added setUpOnce() function to make clear what is single
+        setup for the whole suite.
+        Removed semi-colons ";" from SQL, DBMS/JDBC-driver does not like it.
 """
 import dbapi20
 import unittest
-import ingresdbi
 import popen2
 import re
 import os
@@ -58,6 +66,25 @@ import warnings
 import datetime
 from decimal import Decimal
 import gc # CPython specific.....
+
+#poor but simple test
+jython_runtime_detected=hasattr(sys, 'JYTHON_JAR') or str(copyright).find('Jython') > 0
+
+if jython_runtime_detected:
+    from com.ziclix.python.sql import zxJDBC as driver
+    """
+    JDBC needs a few things setup, minimum:
+        Windows
+            set CLASSPATH=%II_SYSTEM%\ingres\lib\iijdbc.jar
+            set test_password=mypassword(operating system password for Ingres user)
+            set test_port=R27
+        Unix
+            setenv CLASSPATH ${II_SYSTEM}/ingres/lib/iijdbc.jar
+            export CLASSPATH=${II_SYSTEM}/ingres/lib/iijdbc.jar
+            .....
+    """
+else:
+    import ingresdbi as driver
 
 """
 
@@ -96,6 +123,8 @@ username=os.getenv('test_username')
 password=os.getenv('test_password')
 vnode=os.getenv('test_vnode')
 database=os.getenv('test_database')
+if database is None:
+    database='dbapi20_test'
 pooled=os.getenv('test_pooled')  # Windows only
 traceLevel_str=os.getenv('test_trace')
 if traceLevel_str != None:
@@ -103,6 +132,17 @@ if traceLevel_str != None:
 else:
     traceLevel = 0
 traceFile=os.getenv('test_trace_file')
+if jython_runtime_detected:
+    hostname=os.getenv('test_hostname')
+    if not hostname:
+        hostname='localhost'
+    port=os.getenv('test_port')
+    if not port:
+        port='II7'
+    if not username:
+        # JDBC needs a user name, either default to current user
+        # or default to named user
+        username='ingres'
 
 # Not sure about this!!!!
 warnings.warn('Some tests are not being ran at the moment due to hangs (after they complete)')
@@ -112,7 +152,6 @@ warnings.warn('FIXME Filtering of warnings enabled! This should be checked.')
 warnings.simplefilter('ignore', Warning)
 ## We have an odd behavior, e.g. accessing connection.Warning, see dbapi20.py:210. pysqlite2 does not have this
 ## oddly, setting warnings to ERRORS, silences Ingres but not sqlite!
-
 
 def dropTable(c, tablename):
     """Simple drop table wrapper that ignores "table does not exist" errors. Warning: Not sql injection safe.
@@ -126,54 +165,64 @@ DataError: (3, 2753, '42500', "[Ingres][NGRES ODBC Driver][NGRES]DROP: 'myblob' 
     try:
         sql_string = 'drop table %s' % tablename
         c.execute(sql_string)
-    except ingresdbi.DataError, info:
-        sqlstate=repr(info.args[2])
-        if sqlstate != "'42500'": # this looks buggy.. string with quotes as part of data?
-            raise
+    except driver.Error, info:
+        # now follows some slightly hairy sqlstate check code
+        # this should be fairly straight forward but the information
+        # is not in an easy to use format
+        if jython_runtime_detected:
+            if not info.message.endswith('[SQLCode: 2753], [SQLState: 42500]'):
+                raise
+        else:
+            # ingresdbi
+            sqlstate=info.args[2]
+            if sqlstate != '42500':
+                raise
 
+globalsetUpOnceFlag=False
 class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
-    driver = ingresdbi
+    driver = driver
     connect_args = ()
     connect_kw_args = {}
-
-    if dsn != None:
-        connect_kw_args.setdefault('dsn',dsn)
-    if username != None:
-        connect_kw_args.setdefault('uid',username)
-    if password != None:
-        connect_kw_args.setdefault('pwd',password)
-    if vnode != None:
-        connect_kw_args.setdefault('vnode',vnode)
-    if database != None:
-        connect_kw_args.setdefault('database',database)
+    
+    if jython_runtime_detected:
+        ingres_driver_class='com.ingres.jdbc.IngresDriver'
+        ingres_driver_uri='ingres'
+        d, u, p, v = "jdbc:%s://%s:%s/%s/;select_loop=on"%(ingres_driver_uri, hostname, port, database), username, password, ingres_driver_class
+        connect_args += (d, u, p, v)
     else:
-        connect_kw_args.setdefault('database', 'dbapi20_test')
-    if pooled != None:
-        connect_kw_args.setdefault('pooled', pooled)
+        if dsn != None:
+            connect_kw_args.setdefault('dsn',dsn)
+        if username != None:
+            connect_kw_args.setdefault('uid',username)
+        if password != None:
+            connect_kw_args.setdefault('pwd',password)
+        if vnode != None:
+            connect_kw_args.setdefault('vnode',vnode)
+        connect_kw_args.setdefault('database',database)
+        if pooled != None:
+            connect_kw_args.setdefault('pooled', pooled)
         trace=(traceLevel, traceFile)
-    trace=(traceLevel, traceFile)
-    connect_kw_args.setdefault('trace',trace)
+        connect_kw_args.setdefault('trace',trace)
+    
     table_prefix = 'dbapi20test_' # If you need to specify a prefix for tables
 
     lower_func = 'lower' # For stored procedure test
 
-    def setUp(self):
-        # NOTE using Python unittest, setUp() is called before EACH and every
-        # test. There is no single setup routine hook (other than hacking init,
-        # module main, etc.). Setup is done here in case an external test 
-        # suite runner is used (e.g. nose, py.test, etc.). So far all the 
-        # setup implemented here is single setup that only needs to be done
-        # once at the start of the complete test run.
-        #
-        # Call superclass setUp In case this does something in the
-        # future
-        dbapi20.DatabaseAPI20Test.setUp(self) 
-
-        dbname = self.connect_kw_args['database']
-
+    def setUpOnce(self):
+        """Custom, one shot custom setup issued only once for the entire batch of tests
+        NOTE actually runs for every test if it fails......
+        """
+        global globalsetUpOnceFlag
+        if globalsetUpOnceFlag:
+            return
+        
+        if jython_runtime_detected:
+            dbname = database # not sure about this
+        else:
+            dbname = self.connect_kw_args['database']
         try:
             con = self._connect()
-        except ingresdbi.DataError:
+        except self.driver.DataError:
             cmd = "createdb -i %s -f nofeclients" % dbname
             cout,cin = popen2.popen2(cmd)
             cin.close()
@@ -203,6 +252,23 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
         rs = cur.fetchone()
         self.assertEqual(rs[0], 'NFC', 'Test database "%s" needs to use NFC UNICODE_NORMALIZATION (i.e. "createdb -i ...")' % dbname) # this probably should be made more obvious in the error output!
         con.close()
+        # set complete flag AFTER everything has been done successfully
+        globalsetUpOnceFlag=True
+    
+    def setUp(self):
+        # NOTE using Python unittest, setUp() is called before EACH and every
+        # test. There is no single setup routine hook (other than hacking init,
+        # module main, etc.). Setup is done here in case an external test
+        # suite runner is used (e.g. nose, py.test, etc.).
+        
+        # Call superclass setUp In case this does something in the
+        # future
+        dbapi20.DatabaseAPI20Test.setUp(self) 
+        
+        # ensure intial setup complete
+        self.setUpOnce()
+        
+        # end of setUp() there is no per test setup required.
 
     def tearDown(self):
         dbapi20.DatabaseAPI20Test.tearDown(self)
@@ -638,7 +704,7 @@ from iidbconstants
         self.curs = self.con.cursor()
         
         expected_value_str="-0.12345"
-        sql_query="select decimal(%s, 5, 5) from iidbconstants;" % expected_value_str
+        sql_query="select decimal(%s, 5, 5) from iidbconstants" % expected_value_str
         
         expected_value=Decimal(expected_value_str)
         self.curs.execute(sql_query)
@@ -810,7 +876,7 @@ from iidbconstants
 
         expected_value="X"*50
         expected_value_len=len(expected_value)
-        sql_query="select varchar('%s', %d) from iidbconstants;" % (expected_value, expected_value_len)
+        sql_query="select varchar('%s', %d) from iidbconstants" % (expected_value, expected_value_len)
 
         self.curs.execute(sql_query)
         rs = self.curs.fetchall()
@@ -850,7 +916,7 @@ from iidbconstants
         expected_value="X"*50
         padlength=20
         expected_value_len=len(expected_value)+padlength
-        sql_query="select char('%s', %d) from iidbconstants;" % (expected_value, expected_value_len)
+        sql_query="select char('%s', %d) from iidbconstants" % (expected_value, expected_value_len)
 
         self.curs.execute(sql_query)
         rs = self.curs.fetchall()
@@ -872,7 +938,7 @@ from iidbconstants
         expected_value="X"*50
         padlength=20
         expected_value_len=len(expected_value)+padlength
-        sql_query="select nchar('%s', %d) from iidbconstants;" % (expected_value, expected_value_len)
+        sql_query="select nchar('%s', %d) from iidbconstants" % (expected_value, expected_value_len)
 
         self.curs.execute(sql_query)
         rs = self.curs.fetchall()
@@ -894,7 +960,7 @@ from iidbconstants
 
         expected_value="X"*50
         expected_value_len=len(expected_value)
-        sql_query="select nvarchar('%s', %d) from iidbconstants;" % (expected_value, expected_value_len)
+        sql_query="select nvarchar('%s', %d) from iidbconstants" % (expected_value, expected_value_len)
 
         self.curs.execute(sql_query)
         rs = self.curs.fetchall()
@@ -936,7 +1002,7 @@ from iidbconstants
         #self.curs.execute("drop table myBlob")
         dropTable(self.curs, 'myBlob')
         self.curs.execute("create table myBlob(blobCol long byte)")
-        self.curs.execute("insert into myBlob values(?)", (ingresdbi.Binary(blob),))
+        self.curs.execute("insert into myBlob values(?)", (self.driver.Binary(blob),))
         #self.curs.execute("select * from myBlob")
         rs = self.curs.fetchall() # issue fetch after an insert
         
