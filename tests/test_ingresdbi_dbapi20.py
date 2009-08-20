@@ -800,6 +800,130 @@ from iidbconstants
         self.curs.close()
         self.con.close()
 
+    def test_stringLongValues(self):
+        """string (varchar) type, sanity check for "long" values.
+        Long values as those where the value uses all the space and
+        will display at maximum width.
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value="X"*50
+        expected_value_len=len(expected_value)
+        sql_query="select varchar('%s', %d) from iidbconstants;" % (expected_value, expected_value_len)
+
+        self.curs.execute(sql_query)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        self.curs.close()
+        self.con.close()
+
+    def test_stringBindLongValues(self):
+        """string (varchar) type, sanity check for bind "long" values.
+        Long values as those where the value uses all the space and
+        will display at maximum width.
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value="-0.1234567890123456789012345678901"
+        expected_value_len=len(expected_value)
+        sql_query="select varchar(?, %d) from iidbconstants" % expected_value_len
+
+        self.curs.execute(sql_query, (expected_value,))
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        self.curs.close()
+
+    def test_stringCharLongValues(self):
+        """string (char) type, sanity check padding for "long" values.
+        Long values as those where the value uses all the space and
+        will display at maximum width.
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value="X"*50
+        padlength=20
+        expected_value_len=len(expected_value)+padlength
+        sql_query="select char('%s', %d) from iidbconstants;" % (expected_value, expected_value_len)
+
+        self.curs.execute(sql_query)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        expected_value=expected_value + ' '*padlength
+        self.assertEqual(rs[0], expected_value)
+
+        self.curs.close()
+        self.con.close()
+
+    def test_stringUnicodeCharLongValues(self):
+        """string Unicode (char) type, sanity check padding for "long" values.
+        Long values as those where the value uses all the space and
+        will display at maximum width.
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value="X"*50
+        padlength=20
+        expected_value_len=len(expected_value)+padlength
+        sql_query="select nchar('%s', %d) from iidbconstants;" % (expected_value, expected_value_len)
+
+        self.curs.execute(sql_query)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        expected_value=expected_value + ' '*padlength
+        self.assertEqual(rs[0], expected_value)
+
+        self.curs.close()
+        self.con.close()
+
+    def test_stringUnicodeLongValues(self):
+        """Unicode string (nvarchar) type, sanity check for "long" values.
+        Long values as those where the value uses all the space and
+        will display at maximum width.
+        Relies on Ingres 9.1 coercion of Unicode strings support
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value="X"*50
+        expected_value_len=len(expected_value)
+        sql_query="select nvarchar('%s', %d) from iidbconstants;" % (expected_value, expected_value_len)
+
+        self.curs.execute(sql_query)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        self.curs.close()
+        self.con.close()
+
+    def test_stringUnicodeBindLongValues(self):
+        """Unicode string (nvarchar) type, sanity check for bind "long" values.
+        Long values as those where the value uses all the space and
+        will display at maximum width.
+        Relies on Ingres 9.1 coercion of Unicode strings support
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value="-0.1234567890123456789012345678901"
+        expected_value_len=len(expected_value)
+        sql_query="select nvarchar(?, %d) from iidbconstants" % expected_value_len
+
+        self.curs.execute(sql_query, (expected_value,))
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        self.curs.close()
+
     '''
     not actually abug by the looks of it
     def test_bugSelectLob(self):
