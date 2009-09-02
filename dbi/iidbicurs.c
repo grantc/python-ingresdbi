@@ -153,7 +153,7 @@
 ** 
 ** max string length/size of decimal value is based on: 
 **      precision (not the precision/scale encoded combo) for digits 
-**      +1 for NULL terminator 
+**      +1 for NULL terminator, ODBC auto null terminates when using SQLGetData()
 **      +1 for period/dot/comma 
 **      +1 for possible negative sign. 
 **      +1 for possible leading zero where precision=scale,
@@ -683,38 +683,6 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
         {
             switch (pstmt->descriptor[i]->type)
             {
-            case SQL_WVARCHAR:
-            case SQL_WCHAR:
-                rc = SQLGetData(pstmt->hdr.handle, i+1, SQL_C_WCHAR, 
-                                     pstmt->descriptor[i]->data,
-                                     pstmt->descriptor[i]->internalSize + sizeof (SQLWCHAR),
-                                     &orind);
-                if (orind == SQL_NULL_DATA)
-                    pstmt->descriptor[i]->isNull = 1;
-                else
-                    pstmt->descriptor[i]->isNull = 0;
-
-                if (rc == SQL_NO_DATA)
-                    pstmt->fetchDone = TRUE;
-                
-                if (SQL_SUCCEEDED(rc) || rc == SQL_NO_DATA)
-                {
-                    rc = DBI_SQL_SUCCESS;
-                    break;
-                }
-                else
-                {
-                    return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
-                    DBPRINTF(DBI_TRC_STAT)
-                    ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n",
-                        rc, __LINE__, pstmt->hdr.err.sqlState, 
-                        pstmt->hdr.err.messageText, 
-                            pstmt->hdr.err.native);
-                    return return_code;
-                }
-                break;
-
             case SQL_WLONGVARCHAR:
                 /*
                 ** Initialization of descriptor and temporaries
@@ -1173,6 +1141,10 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 break;
 
             case SQL_DECIMAL: 
+            case SQL_WVARCHAR:
+            case SQL_WCHAR:
+            case SQL_CHAR:
+            case SQL_VARCHAR:
                 /* Start of generic get code */
                 rc = SQLGetData(pstmt->hdr.handle, i+1, 
                                      pstmt->descriptor[i]->cType,
@@ -1183,6 +1155,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                     pstmt->descriptor[i]->isNull = 1; 
                 else 
                     pstmt->descriptor[i]->isNull = 0; 
+                pstmt->descriptor[i]->orInd = orind; 
                 if (rc == SQL_NO_DATA) 
                     pstmt->fetchDone = TRUE; 
                 if (SQL_SUCCEEDED(rc) || rc == SQL_NO_DATA) 
@@ -1533,16 +1506,6 @@ dbi_allocData ( IIDBI_STMT *pstmt)
                  break;
     
              default:
-		 if ((pstmt->descriptor[i]->type == SQL_CHAR) ||
-		     (pstmt->descriptor[i]->type == SQL_VARCHAR))
-		 {
-		     dataLen += 1;
-		 }
- 		 if ((pstmt->descriptor[i]->type == SQL_WCHAR) ||
-		     (pstmt->descriptor[i]->type == SQL_WVARCHAR))
-		 {
-		     dataLen += sizeof(SQLWCHAR); /* TODO Is this needed? */
-		 }
                  pstmt->descriptor[i]->data = 
                      calloc(1, dataLen);
                  if (!pstmt->descriptor[i]->data)
@@ -1658,7 +1621,7 @@ BindParameters(IIDBI_STMT *pstmt, unsigned char isProc)
     int return_code;
     int i, nType,type;
     IIDBI_DESCRIPTOR **pdesc;
-    SQLINTEGER *orind;
+    SQLINTEGER *orind=NULL;
     void *data;
     SQLUINTEGER precision;
     SQLSMALLINT scale;
@@ -1691,7 +1654,11 @@ BindParameters(IIDBI_STMT *pstmt, unsigned char isProc)
         ** make orind persistent beyond this call by using the field
         ** in the parameter descriptor structure.
         */
-        orind = (SQLINTEGER *)&pstmt->parameter[i]->orInd;
+        if (isNull)
+            *orind = SQL_NULL_DATA;
+        else
+            orind = (SQLINTEGER *)&pstmt->parameter[i]->orInd;
+
         DBPRINTF(DBI_TRC_STAT)("DATATYPE IS %d for parameter %d\n",
             pstmt->parameter[i]->type, i+1);
         switch (type)
@@ -1762,63 +1729,15 @@ BindParameters(IIDBI_STMT *pstmt, unsigned char isProc)
             break; 
 
         case SQL_DECIMAL:
-            /* Start of generic BindParameters code */
-            if (isNull)
-                *orind = SQL_NULL_DATA;
-            else
-                *orind = SQL_NTS;
-            rc = SQLBindParameter(pstmt->hdr.handle, i+1, SQL_PARAM_INPUT, 
-                cType, type, precision, scale, data, internalSize , orind);
-
-            if (rc != SQL_SUCCESS) 
-            {
-                return_code = IIDBI_ERROR( rc, NULL, NULL, pstmt->hdr.handle, 
-                    &pstmt->hdr.err );
-
-                DBPRINTF(DBI_TRC_STAT)
-                    ( "%d = SQLBindParameter (%d) %s %s %x\n    %s\n",
-                    rc, __LINE__, pstmt->hdr.err.sqlState, 
-                    pstmt->hdr.err.messageText, pstmt->hdr.err.native, 0 );
-                return return_code;
-            }
-            break; 
-
         case SQL_CHAR:
         case SQL_VARCHAR:
-            DBPRINTF(DBI_TRC_STAT)("CHAR or VARCHAR\n");
-            if (isNull)
-                *orind = SQL_NULL_DATA;
-            else
-                *orind = SQL_NTS;
-            DBPRINTF(DBI_TRC_STAT)("Precision is %d with data %s\n",precision, data);
-            rc = SQLBindParameter(pstmt->hdr.handle, i+1, SQL_PARAM_INPUT, 
-                SQL_C_CHAR, type, precision, scale, (char *)data, precision+1, orind);
-
-            if (rc != SQL_SUCCESS) 
-            {
-                return_code = IIDBI_ERROR( rc, NULL, NULL, pstmt->hdr.handle, 
-                    &pstmt->hdr.err );
-
-                DBPRINTF(DBI_TRC_STAT)
-                    ( "%d = SQLBindParameter (%d) %s %s %x\n    %s\n",
-                    rc, __LINE__, pstmt->hdr.err.sqlState, 
-                    pstmt->hdr.err.messageText, pstmt->hdr.err.native, 0 );
-                return return_code;
-            }
-            break; 
-
         case SQL_WCHAR:
         case SQL_WVARCHAR:
-            DBPRINTF(DBI_TRC_STAT)("SQL_WCHAR or SQL_WVARCHAR\n");
-            if (isNull)
-                *orind = SQL_NULL_DATA;
-            else
-                *orind = SQL_NTS;
-            precision = (SQLUINTEGER)wcslen(data) + 1;
-            DBPRINTF(DBI_TRC_STAT)("Precision is %d\n",precision);
+            /* Start of generic BindParameters code */
+/* TODO add trace code for data? */
+            DBPRINTF(DBI_TRC_STAT)("BindParameter %d SQL_PARAM_INPUT cType %d, type %d, precision %d, scale %d, internalSize %d, orind %d\n", i+1, cType, type, precision, scale, internalSize, *orind);
             rc = SQLBindParameter(pstmt->hdr.handle, i+1, SQL_PARAM_INPUT, 
-                SQL_C_WCHAR, type, precision, scale, (SQLWCHAR *)data, 
-                precision, orind);
+                cType, type, precision, scale, data, internalSize, orind);
 
             if (rc != SQL_SUCCESS) 
             {
@@ -1966,7 +1885,7 @@ BindParameters(IIDBI_STMT *pstmt, unsigned char isProc)
             if (isNull)
                 *orind = SQL_NULL_DATA;
             else
-                *orind = SQL_NTS;
+                *orind = SQL_NTS; /* FIXME consider using string size (i.e. PyString_Size), see SQL_VARCHAR above */
 
             DBPRINTF(DBI_TRC_STAT)("Precision is %d with data %s\n",precision, data);
 
@@ -2042,6 +1961,10 @@ RETCODE dbi_describeColumns (IIDBI_STMT *pstmt)
             precision = 0;
             pstmt->descriptor[i]->precision = precision;
             break;
+        case SQL_WVARCHAR:
+        case SQL_WCHAR:
+            cType=SQL_C_WCHAR;
+            break;
         }
         rc = SQLColAttribute(hstmt, i+1, SQL_DESC_DISPLAY_SIZE, 0, 0, NULL, 
             &displaySize);
@@ -2078,6 +2001,20 @@ RETCODE dbi_describeColumns (IIDBI_STMT *pstmt)
                         pstmt->hdr.err.native);
             return return_code;
         }
+                switch (pstmt->descriptor[i]->type)
+                {
+                    case SQL_CHAR:
+                    case SQL_VARCHAR:
+                        /* precision + 1 */
+                        internalSize+=1; /* SQLGetData null terminates strings, so need space for it */
+                        break;
+                    case SQL_WVARCHAR:
+                    case SQL_WCHAR:
+                        /* (precision + 1) * sizeof(SQLWCHAR) */
+                        internalSize+=sizeof(SQLWCHAR); /* SQLGetData null terminates strings, so need space for it */
+                        break;
+                }
+                
                 break;
         }
         DBPRINTF(DBI_TRC_STAT)("For Col %d, type is %d (cType is %d), name is %s, precision is %d, scale is %d display size is %d internal size is %d and nullable is %d\n", i, type, cType, colName, precision, scale, displaySize, internalSize, nullable); 

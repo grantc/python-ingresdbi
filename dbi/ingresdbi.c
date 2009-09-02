@@ -221,6 +221,11 @@
 **      Set accurate decimal precision/scale/internalSize information
 **      for bind parameters.
 **      Added trace information for bind parameters as they are processed.
+**  01-Sep-2009 (Chris.Clark@ingres.com)
+**      Errors from Unicode encode/decode were not detected, or dealt with.
+**      Wrong lengths used for Unicode strings (null terminated length, not 
+**      real length) + padding issues.
+**      UCS4/UTF32 platforms were not handled, which corrupted Unicode data.
 **/
 
 static PyObject *IIDBI_Warning;
@@ -3702,7 +3707,7 @@ static PyObject *IIDBI_cursorExecute(IIDBI_CURSOR *self, PyObject *args)
     char *errMsg;
     int result = FALSE;
     
-    DBPRINTF(DBI_TRC_RET)("%p: IIDBI_cursorExecute }}}1\n", self);
+    DBPRINTF(DBI_TRC_ENTRY)("%p: IIDBI_cursorExecute {{{1\n", self);
 
     if (!PyArg_ParseTuple(args, "s|O", &szSqlStr, &params)) 
     {
@@ -3879,14 +3884,14 @@ static PyObject *IIDBI_cursorExecute(IIDBI_CURSOR *self, PyObject *args)
         Py_INCREF(self->description);
     }
 
-    DBPRINTF(DBI_TRC_RET)("%p: IIDBI_cursorExecute }}}1\n", self);
+    DBPRINTF(DBI_TRC_ENTRY)("%p: IIDBI_cursorExecute }}}1\n", self);
     
     dbi_freeData(IIDBIpstmt);   
     Py_INCREF(Py_None);
     return(Py_None);
 
 errorExit:
-    DBPRINTF(DBI_TRC_RET)("%p: IIDBI_cursorExecute }}}1\n", self);
+    DBPRINTF(DBI_TRC_ENTRY)("%p: IIDBI_cursorExecute }}}1\n", self);
     if (self->szSqlStr)
     {
         free(self->szSqlStr);
@@ -4118,7 +4123,7 @@ static PyObject *IIDBI_cursorCallProc(IIDBI_CURSOR *self, PyObject *args)
                 else
                     PyTuple_SetItem(row, i, (PyObject *)
                         PyString_FromStringAndSize( parameter[i]->data, 
-                             parameter[i]->precision));
+                                                    parameter[i]->precision));
                 break;
     
             case SQL_WCHAR:
@@ -4132,7 +4137,7 @@ static PyObject *IIDBI_cursorCallProc(IIDBI_CURSOR *self, PyObject *args)
                       PyTuple_SetItem(row, i, (PyObject *)
                         PyUnicode_Decode((const char *)parameter[i]->data, 
                         (int)wcslen(parameter[i]->data)*sizeof(SQLWCHAR),
-                        "utf_16","strict"));
+                        "utf_16","strict")); /* dbproc FIXME */
                 break;
     
             default:
@@ -4142,7 +4147,7 @@ static PyObject *IIDBI_cursorCallProc(IIDBI_CURSOR *self, PyObject *args)
                 }
                 else
                     PyTuple_SetItem(row, i, 
-                        PyString_FromString(parameter[i]->data));
+                        PyString_FromString(parameter[i]->data)); /* dbproc FIXME use PyString_FromStringAndSize */
                 break;
             }
         } /* for (i = 0; i < parmCount; i++) */
@@ -4429,16 +4434,34 @@ static PyObject *IIDBI_cursorFetch(IIDBI_CURSOR *self)
             case SQL_LONGVARBINARY:
                     PyTuple_SetItem(row, i, (PyObject *)
                         PyString_FromStringAndSize( descriptor[i]->data, 
-                             descriptor[i]->precision));
+                                                    descriptor[i]->precision));
                 break;
 
             case SQL_WCHAR:
             case SQL_WVARCHAR:
             case SQL_WLONGVARCHAR:
                       PyTuple_SetItem(row, i, (PyObject *)
-                        PyUnicode_Decode((const char *)descriptor[i]->data, 
-                        (int)wcslen(descriptor[i]->data)*sizeof(SQLWCHAR),
-                        "utf_16","strict"));
+                        PyUnicode_FromWideChar( (const wchar_t *)descriptor[i]->data, 
+                                                (Py_ssize_t) descriptor[i]->orInd/sizeof(SQLWCHAR))
+                        );
+                    if (PyErr_Occurred())
+                    {
+                        DBPRINTF(DBI_TRC_RET)("PyTuple_SetItem(....PyUnicode_FromWideChar.. failed\n");
+                        /*
+                        ** TODO consider logging stack back trace to log 
+                        ** (or include in exception text), this way we know 
+                        ** why the Python call failed? Maybe put this logic
+                        ** in IIDBI_handleError().
+                        ** Requires stderr redirect, may need to tack GIL lock too.
+                        ** 
+                        ** See http://groups.google.com/group/comp.lang.python/msg/5c3b92953cbef32b?hl=en&dmode=source
+                        ** See http://effbot.org/pyfaq/how-do-i-catch-the-output-from-pyerr-print-or-anything-that-prints-to-stdout-stderr.htm
+                        */
+                        exception = IIDBI_InterfaceError;
+                        errMsg = "Conversion of result column from SQLWCHAR into PyUnicode failed.";
+                        result = IIDBI_handleError((PyObject *)self, exception, errMsg);
+                        goto errorExit;
+                    }
                 break;
             case SQL_DECIMAL:
                     PyTuple_SetItem(row, i, 
@@ -4447,7 +4470,9 @@ static PyObject *IIDBI_cursorFetch(IIDBI_CURSOR *self)
 
             default:
                 PyTuple_SetItem(row, i, 
-                    PyString_FromString(descriptor[i]->data));
+                    PyString_FromStringAndSize(descriptor[i]->data,
+                                                (Py_ssize_t) descriptor[i]->orInd)
+                );
                 break;
             }
         }
@@ -4919,6 +4944,7 @@ static PyObject *IIDBI_cursorFetchAll(IIDBI_CURSOR *self)
 
     if (row == NULL)
     {
+        DBPRINTF(DBI_TRC_STAT)("fetchall call to IIDBI_cursorFetch got null\n");
         exception = IIDBI_DatabaseError;
         errMsg = "Error fetching rows";
         result = IIDBI_handleError((PyObject *)self, exception, errMsg);
@@ -4934,6 +4960,7 @@ static PyObject *IIDBI_cursorFetchAll(IIDBI_CURSOR *self)
         row = IIDBI_cursorFetch(self);
         if (row == NULL)
         {
+            DBPRINTF(DBI_TRC_STAT)("fetchall call to IIDBI_cursorFetch got null\n");
             Py_XDECREF(list);
             exception = IIDBI_DatabaseError;
             errMsg = "Error fetching rows";
@@ -5704,6 +5731,8 @@ int IIDBI_handleError(PyObject *self, PyObject *exception, char *errMsg)
     }
     if (calledObj != Py_None) 
     {
+        DBPRINTF(DBI_TRC_STAT)("%p: IIDBI_handleError ERROR: %s\n", self, errMsg);
+
         PyErr_SetString(exception, errMsg);
 
         DBPRINTF(DBI_TRC_RET)("%p: IIDBI_handleError }}}1\n", self);
@@ -6002,8 +6031,8 @@ int IIDBI_sendParameters(IIDBI_CURSOR *self, PyObject *params)
 {
     PyObject *exception;
     char *errMsg;
-    int result;
-    int rc;
+    int result=0;
+    int rc=0;
     int parmCount;
     int i;
     int len;
@@ -6012,6 +6041,8 @@ int IIDBI_sendParameters(IIDBI_CURSOR *self, PyObject *params)
     SQL_TIME_STRUCT *tm=NULL;
     SQL_DATE_STRUCT *date=NULL;
     SQL_TIMESTAMP_STRUCT *ts=NULL;
+    SQLWCHAR *unicodeStr=NULL;
+    Py_ssize_t tmplength=0;
     IIDBI_STMT *IIDBIpstmt = self->IIDBIpstmt;
     void *data;
 
@@ -6112,18 +6143,51 @@ int IIDBI_sendParameters(IIDBI_CURSOR *self, PyObject *params)
             parameter[i]->precision = 
                 (int)strlen((char *)parameter[i]->data);
             parameter[i]->scale = 0;
-            parameter[i]->orInd = SQL_NTS;
+            parameter[i]->orInd = PyString_Size(elem);
             parameter[i]->isNull = 0;
         }
         else if (PyUnicode_Check(elem)) 
         {
-            parameter[i]->data = (void *)PyUnicode_AS_UNICODE(elem);
+            int tmpUniStrLen=0;
+            tmpUniStrLen = PyUnicode_GetSize(elem);
+            if (PyErr_Occurred())
+            {
+                exception = IIDBI_InterfaceError;
+                errMsg = "length check failed on Unicode string";
+                DBPRINTF(DBI_TRC_STAT)("ERROR: %s\n", errMsg);
+                result = IIDBI_handleError((PyObject *)self, exception, errMsg);
+                goto errorExit;
+            }
+            parameter[i]->orInd = tmpUniStrLen;
+            parameter[i]->orInd = parameter[i]->orInd * sizeof(SQLWCHAR); /* byte length */
+            parameter[i]->internalSize = parameter[i]->orInd; /* NOTE unlike get/fetch no +1 (sizeof(SQLWCHAR)) null terminator */
             parameter[i]->type = SQL_WVARCHAR;
             parameter[i]->cType = SQL_C_WCHAR;
-            parameter[i]->precision = PyUnicode_GET_DATA_SIZE(elem);
+            parameter[i]->precision = tmpUniStrLen;
             parameter[i]->scale = 0;
-            parameter[i]->orInd = SQL_NTS;
             parameter[i]->isNull = 0;
+
+
+            unicodeStr = malloc(parameter[i]->internalSize);
+            if (unicodeStr == NULL)
+            {
+                exception = IIDBI_InterfaceError;
+                errMsg = "Unable to allocate internal Unicode string to send to server";
+                DBPRINTF(DBI_TRC_STAT)("%s\n", errMsg);
+                result = IIDBI_handleError((PyObject *)self, exception, errMsg);
+                goto errorExit;
+            }
+            tmplength=PyUnicode_AsWideChar(PyUnicode_FromObject(elem), unicodeStr, PyUnicode_GetSize(elem)); /* FIXME compile warnings */
+            /* tmplength=PyUnicode_AsWideChar(elem, unicodeStr, PyUnicode_GetSize(elem)); ** FIXME compile warnings */
+            if (tmplength == -1 || PyErr_Occurred())
+            {
+                exception = IIDBI_InterfaceError;
+                errMsg = "Unable to copy Python string into internal Unicode string";
+                DBPRINTF(DBI_TRC_STAT)("%s\n", errMsg);
+                result = IIDBI_handleError((PyObject *)self, exception, errMsg);
+                goto errorExit;
+            }
+            parameter[i]->data = unicodeStr;
         }
         else if (PyBuffer_Check(elem)) 
         {

@@ -55,6 +55,32 @@
         Added setUpOnce() function to make clear what is single
         setup for the whole suite.
         Removed semi-colons ";" from SQL, DBMS/JDBC-driver does not like it.
+    01-Sep-2009 (Chris.Clark@ingres.com)
+        test_bug_Embedded_Nulls split into two seperate tests, one for 
+        VARCHAR type the other for NVARCHAR (Unicode), new tests:
+            test_bug_Embedded_NullsVarchar
+            test_bug_Embedded_NullsUnicode
+        New tests based on test_bug_Embedded_Nulls that is for bind parameters:
+            test_bug_Embedded_BindNullsVarcharNonPrepared -- fails
+            test_bug_Embedded_BindNullsVarchar
+            test_bug_Embedded_BindNullsUnicode
+            test_bug_Embedded_BindNullsVarcharInsert
+            test_bug_Embedded_BindNullsUnicodeInsert
+        test_bug_Embedded_BindNullsVarcharNonPrepared is based on 
+        test_bug_Embedded_BindNullsVarchar and fails presently, not sure if
+        this is an IngresDBI bug or an ODBC bug.
+        Fixed "bad" test NOtest_SimpleUnicodeBind, it has now been renamed to 
+        test_SimpleUnicodeBind and is now part of all test runs.
+        Added new tests that do not run that show problems/hangs with/in 
+        test_cursorIter when certain kinds of errors occur in previous tests.
+            NOtest_anotherPreCursIter
+            NOtest_iterhang_presetup
+        Warnings that list tests that do not run by default are now in sorted
+        order.
+        Updated test_stringUnicodeCharLongValues with possible DBMS problems information.
+        Check for dbproc called lower was not checking the schema of the 
+        current user which leed to dbproc failures if different users used 
+        the same database for testing.
 """
 import dbapi20
 import unittest
@@ -146,8 +172,11 @@ if jython_runtime_detected:
 
 # Not sure about this!!!!
 warnings.warn('Some tests are not being ran at the moment due to hangs (after they complete)')
-warnings.warn('Hang after: NOtest_SimpleUnicodeBind')
+# list of tests to check obtained from:
+#   grep NOtest tests/test_ingresdbi_dbapi20.py  |grep def |sed  's/(self)://g'|sed  's/def//g' |sort -u
+warnings.warn('Hang after: NOtest_anotherPreCursIter')
 warnings.warn('Hang after: NOtest_bugTimestampMicrosecs')
+warnings.warn('Hang after: NOtest_iterhang_presetup')
 warnings.warn('FIXME Filtering of warnings enabled! This should be checked.')
 warnings.simplefilter('ignore', Warning)
 ## We have an odd behavior, e.g. accessing connection.Warning, see dbapi20.py:210. pysqlite2 does not have this
@@ -234,16 +263,16 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
 
         # Do we have a procedure called lower? 
         cur=con.cursor()
-        cur.execute("select procedure_name from iiprocedures where procedure_name = 'lower'")
+        cur.execute("select procedure_name from iiprocedures where procedure_name = '%s' and procedure_owner = USER"%self.lower_func)
         if len(cur.fetchall()) == 0:
-            cur.execute("""create procedure lower( a varchar(20) not null)
+            cur.execute("""create procedure %s( a varchar(20) not null)
                             result row (varchar(20))
                             as 
                                 declare x=varchar(20) not null; 
                             begin 
                                 select lower(a) into x; 
                                 return row(x); 
-                            end""")
+                            end"""%self.lower_func)
             con.commit()
 
         # check we have the expected type of Unicode support.
@@ -618,25 +647,16 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
         self.curs.close()
         self.con.close()
 
-    def test_bug_Embedded_Nulls(self):
-        """Trac ticket:255 - embedded nulls are lost
+    def test_bug_Embedded_NullsVarchar(self):
+        """Trac ticket:255 - embedded nulls in varchar type are lost
         """
         self.con = self._connect()
         self.curs = self.con.cursor()
         
-        sql_query=r"""select
-    length(U&'x\0000y') as length_unicode,
-    hex(U&'x\0000y') as hex_unicode, 
-    length(varchar(U&'x\0000y')) as length_singlebyte, 
-    hex(varchar(U&'x\0000y')) as hex_singlebyte
-from iidbconstants
-        """ # sample SQL to run in TM
-        sql_query=r"""select
-    length(U&'x\0000y') as length_unicode,
-    U&'x\0000y' as hex_unicode, 
-    length(varchar(U&'x\0000y')) as length_singlebyte, 
-    varchar(U&'x\0000y') as hex_singlebyte
-from iidbconstants
+        sql_query="""select
+    length(varchar(U&'x\\0000y')) as length_singlebyte,
+    varchar(U&'x\\0000y') as hex_singlebyte
+    from iidbconstants
         """ # NOTE need 9.1.2 or later (problems with older/pre-patched versions)
         #expected_value=u'x\u0000y' # NOTE not Python 3.x compatible....
         expected_value='x\x00y' # should be Python 2.x and 3.x compatible
@@ -645,11 +665,195 @@ from iidbconstants
         rs = rs[0]
         self.assertEqual(rs[1], expected_value)
         self.assertEqual(rs[0], len(rs[1]))
-        self.assertEqual(rs[3], expected_value)
-        self.assertEqual(rs[2], len(rs[3]))
 
         self.curs.close()
         self.con.close()
+    
+    def test_bug_Embedded_NullsUnicode(self):
+        """Trac ticket:255 - embedded nulls In Unicode are lost
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        sql_query="""select
+    length(U&'x\0000y') as length_unicode,
+    U&'x\0000y' as hex_unicode
+    from iidbconstants
+        """ # NOTE need 9.1.2 or later (problems with older/pre-patched versions)
+        sql_query="""select 
+                    length(nvarchar(U&'x\\0000y')) as length_unicode,
+                    nvarchar(U&'x\\0000y') as hex_unicode
+                    from iidbconstants;""" # NOTE need 9.1.2 or later (problems with older/pre-patched versions)
+        #expected_value=u'x\u0000y' # NOTE not Python 3.x compatible....
+        expected_value='x\x00y' # should be Python 2.x and 3.x compatible
+        self.curs.execute(sql_query)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[1], expected_value)
+        self.assertEqual(rs[0], len(rs[1]))
+
+        self.curs.close()
+        self.con.close()
+
+
+    def test_bug_Embedded_BindNullsVarcharNonPrepared(self):
+        """Identical to test_bug_Embedded_BindNullsVarchar but does not use prepared cursors.
+        This _may_ be an ODBC bug, if self.curs.prepared='y' is set, no problem reported
+        As of 2009-09-01 fails with error:
+            Syntax error on 'using'.  The correct syntax is:
+             OPEN CURSORID CURSOR FOR fullselect
+               [FOR [DIRECT | DEFERRED] UPDATE OF column {, ... }]
+               [FOR READONLY]
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        self.curs.prepared = "No" # explictly turn it off
+
+        sql_query="""select
+    length(varchar(?)) as length_singlebyte,
+    varchar(?) as hex_singlebyte
+    from iidbconstants
+        """
+        expected_value='x\x00y' # should be Python 2.x and 3.x compatible
+        self.curs.execute(sql_query, (expected_value, expected_value))
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[1], expected_value)
+        self.assertEqual(rs[0], len(rs[1]))
+
+        self.curs.close()
+        self.con.close()
+
+    def test_bug_Embedded_BindNullsVarchar(self):
+        """embedded bind params nulls in varchar type are lost
+        This _may_ be an ODBC bug, if self.curs.prepared='y' is set, no problem reported
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        self.curs.prepared = "Yes" # FIXME remove this! this is a hack workaround. Not sure if this is an ODBC or IngresDBI bug
+
+        sql_query="""select
+    length(varchar(?)) as length_singlebyte,
+    varchar(?) as hex_singlebyte
+    from iidbconstants
+        """
+        expected_value='x\x00y' # should be Python 2.x and 3.x compatible
+        self.curs.execute(sql_query, (expected_value, expected_value))
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[1], expected_value)
+        self.assertEqual(rs[0], len(rs[1]))
+
+        self.curs.close()
+        self.con.close()
+
+    def test_bug_Embedded_BindNullsUnicode(self):
+        """bind params, select Unicode strings with embedded nulls from nvarchar
+embedded bind params nulls In Unicode are lost
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        self.curs.prepared = "Yes" # FIXME remove this! this is a hack workaround. Not sure if this is an ODBC or IngresDBI bug
+
+        sql_query="""select
+                    length(nvarchar(?)) as length_unicode,
+                    nvarchar(?) as hex_unicode
+                    from iidbconstants;"""
+        expected_value=u'x\u0000y' # NOTE not Python 3.x compatible....
+        self.curs.execute(sql_query, (expected_value, expected_value))
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[1], expected_value)
+        self.assertEqual(rs[0], len(rs[1]))
+
+        self.curs.close()
+        self.con.close()
+
+    def test_bug_Embedded_BindNullsVarcharInsert(self):
+        """bind params, insert embedded nulls in varchar
+        Basically the same as test_bug_Embedded_BindNullsVarchar but uses a table
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value='x\x00y' # should be Python 2.x and 3.x compatible
+        table_name='nullVarchar'
+        
+        dropTable(self.curs, table_name)
+        self.curs.execute("create table %s (col1 integer, col2 varchar(9))" % table_name)
+        self.curs.execute("insert into %s (col1, col2) values (1, ?)" % table_name, (expected_value,))
+        self.con.commit()
+        
+        self.curs.execute("select col2 from %s order by col1" % table_name)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        # clean up
+        dropTable(self.curs, table_name)
+        self.con.commit()
+
+        self.curs.close()
+        self.con.close()
+    
+    def test_bug_Embedded_BindNullsUnicodeInsert(self):
+        """bind params, insert Unicode string with embedded nulls in nvarchar
+        Basically the same as test_bug_Embedded_BindNullsUnicode but uses a table
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value=u'x\u0000y' # NOTE not Python 3.x compatible....
+        table_name='nullNVarchar'
+        
+        dropTable(self.curs, table_name)
+        self.curs.execute("create table %s (col1 integer, col2 varchar(9))" % table_name)
+        self.curs.execute("insert into %s (col1, col2) values (1, ?)" % table_name, (expected_value,))
+        self.con.commit()
+        
+        self.curs.execute("select col2 from %s order by col1" % table_name)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        # clean up
+        dropTable(self.curs, table_name)
+        self.con.commit()
+
+        self.curs.close()
+        self.con.close()
+
+    def NOtest_iterhang_presetup(self):
+        """Basically a bad test version of test_bug_Embedded_BindNullsUnicodeInsert
+        (i.e. has logic errors, inserted Unicode (count be ascii with varchar)
+        into numeric column and then selecting numeric column and comparing with
+        Unicode. Causes test_cursorIter to hang if this test runs first!
+
+            -v test_Ingresdbi.NOtest_iterhang_presetup test_Ingresdbi.test_cursorIter
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value=u'x\u0000y' # NOTE not Python 3.x compatible....
+        table_name='nullNVarchar'
+
+        dropTable(self.curs, table_name)
+        self.curs.execute("create table %s (col1 integer, col2 varchar(9))" % table_name)
+        self.curs.execute("insert into %s (col1) values (?)" % table_name, (expected_value,))
+        self.con.commit()
+
+        self.curs.execute("select col1 from %s order by col1" % table_name)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        # clean up
+        dropTable(self.curs, table_name)
+        self.con.commit()
+
+        self.curs.close()
+        self.con.close()
+
     
     ## FIXME needs to be enabled (and debugged) along with test_cursorIter (which hangs when this test is enabled with r1834)
     def NOtest_bugTimestampMicrosecs(self):
@@ -833,13 +1037,13 @@ from iidbconstants
 
         self.curs.execute("select * from %s order by col1" % table_name)
         all_rows = self.curs.fetchall()
+        x=all_rows[0][1]
         self.assertEqual(all_rows, [(1, u'1\u91523456789',)])
 
         self.curs.close()
         self.con.close()
 
-    ## FIXME needs to be enabled (and debugged) along with test_cursorIter (which hangs when this test is enabled with r1843)
-    def NOtest_SimpleUnicodeBind(self):
+    def test_SimpleUnicodeBind(self):
         """Simple Unicode test of bind parameter
         String length is the same/close to max length defined for column (descriptor)
 
@@ -852,7 +1056,7 @@ from iidbconstants
         table_name='utable'
         dropTable(self.curs, table_name)
         self.curs.execute("create table %s (col1 integer, col2 nvarchar(9))" % table_name)
-        self.curs.execute("insert into %s (col1, col2) values (2, ?)", (mystr,))
+        self.curs.execute("insert into %s (col1, col2) values (2, ?)"%table_name, (mystr,))
         self.con.commit()
 
         self.curs.execute("select * from %s order by col1" % table_name)
@@ -863,6 +1067,25 @@ from iidbconstants
         all_rows = self.curs.fetchall()
 
         self.assertEqual(all_rows, [(mystr,)])
+        self.curs.close()
+        self.con.close()
+
+    ## FIXME needs to be enabled (and debugged) along with test_cursorIter (which hangs when this test is enabled with r1843)
+    def NOtest_anotherPreCursIter(self):
+        """based on test_SimpleUnicodeBind but with bad table name
+
+            ./test_ingresdbi_dbapi20.py -v test_Ingresdbi.NOtest_anotherPreCursIter test_Ingresdbi.test_cursorIter
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        mystr = u'123456789'
+        table_name='utable'
+        dropTable(self.curs, table_name)
+        self.curs.execute("create table %s (col1 integer, col2 nvarchar(9))" % table_name)
+        self.curs.execute("insert into %s (col1, col2) values (2, ?)", (mystr,)) # NOTE bad table name
+        self.con.commit()
+
         self.curs.close()
         self.con.close()
 
@@ -935,16 +1158,18 @@ from iidbconstants
         self.con = self._connect()
         self.curs = self.con.cursor()
 
-        expected_value="X"*50
+        expected_value=u"X"*50 # Not python 3.x compat
         padlength=20
         expected_value_len=len(expected_value)+padlength
-        sql_query="select nchar('%s', %d) from iidbconstants" % (expected_value, expected_value_len)
+        sql_query="select nchar('%s', %d) from iidbconstants" % (expected_value, expected_value_len) # Requires Ingres 9.2 (bug or missing feature in 9.1.1)
+        #sql_query="select nchar(nvarchar('%s', %d)) from iidbconstants" % (expected_value, expected_value_len) # Works with 9.1.1 but then get unexpected results, see ServiceDesk issue # 139191
 
         self.curs.execute(sql_query)
         rs = self.curs.fetchall()
         rs = rs[0]
         expected_value=expected_value + ' '*padlength
-        self.assertEqual(rs[0], expected_value)
+        dbvalue = rs[0]
+        self.assertEqual(dbvalue, expected_value, 'len dbvalue %d len canon %d. %r != %r'%(len(dbvalue), len(expected_value), dbvalue, expected_value))
 
         self.curs.close()
         self.con.close()

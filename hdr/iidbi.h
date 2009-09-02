@@ -80,6 +80,11 @@
 # endif
 
 # include <Python.h>
+/* Pre Python 2.5 compat support */
+#if PY_VERSION_HEX < 0x02050000 /* Python 2.4 and earlier */
+/* macro as a workaround rather than typedef */
+#define Py_ssize_t int
+#endif /* python version */
 # include <sql.h>
 # include <sqlext.h>
 
@@ -277,7 +282,7 @@ typedef struct _IIDBI_DESCRIPTOR
     int             displaySize;
     int             internalSize; /* Used for internal memory malloc */
     unsigned char   isNull;
-    long            orInd;
+    long            orInd; /* ODBC indicator and/or byte length specifier of data */
 } IIDBI_DESCRIPTOR; 
 
 /*

@@ -70,6 +70,8 @@ char* dbi_trcfile = NULL;
 **          Fixed issue with tracing to file, every other trace message
 **          was lost due to if-then block of code ALWAYS being ran due
 **          to short cut on IF check (trailing semi-colon).
+**      01-Sep-2009 (Chris.Clark@ingres.com)
+**          Attempting to add comments/details on how tracing works.
 **/
 
 /*{
@@ -80,9 +82,11 @@ char* dbi_trcfile = NULL;
 **      specifies the target for debug messages.
 **
 ** Inputs:
-**      int dbglevel    enables the level of trace messages
+**      int dbglevel    (bitmask) enables the level of trace messages
 **                      0 - disabled.
-**                      1 - entry/exit
+**                      1 - entry/exit  (DBI_TRC_ENTRY)
+**                      2 - ??????????  (DBI_TRC_RET) 1 and 2 appear to be mixed up.
+**                      4 - status      (DBI_TRC_STAT)
 **      char*   trcfile path and filename for trace messages
 **
 ** Outputs:
