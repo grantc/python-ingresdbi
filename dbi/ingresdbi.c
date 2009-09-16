@@ -226,6 +226,12 @@
 **      Wrong lengths used for Unicode strings (null terminated length, not 
 **      real length) + padding issues.
 **      UCS4/UTF32 platforms were not handled, which corrupted Unicode data.
+**  15-Sep-2009 (clach04)
+**      Trac ticket 417 None/NULL binds crash (or fail under 
+**      Microsoft ODBC manager).
+**      Ingres CLI doesn't care about cType, but MS ODBC manager does, set
+**      string type for NULL (type).
+**      Crash was caused by access to uninitialized pointer.
 **/
 
 static PyObject *IIDBI_Warning;
@@ -6218,8 +6224,8 @@ int IIDBI_sendParameters(IIDBI_CURSOR *self, PyObject *params)
         {
             parameter[i]->isNull = 1;
             parameter[i]->data = NULL;
-            parameter[i]->type = SQL_TYPE_NULL;
-            parameter[i]->cType = 0;
+            parameter[i]->type = SQL_TYPE_NULL; /* UNDOCUMENTED Ingres extension - the NULL type */
+            parameter[i]->cType = SQL_C_CHAR; /* Have to have something, Microsoft ODBC manager won't accept 0, Ingres CLI does though */
             parameter[i]->precision = 0;
             parameter[i]->scale = 0;
             parameter[i]->orInd = 0;

@@ -144,6 +144,14 @@
 **          length is used for fetching decimal values from the DBMS. Added
 **          new macro MAX_STRING_LEN_FOR_DECIMAL_PRECISION for calculating
 **          string buffer length.
+**  15-Sep-2009 (clach04)
+**      Trac ticket 417 None/NULL binds crash (or fail under
+**      Microsoft ODBC manager).
+**      Ingres CLI doesn't care about cType, but MS ODBC manager does, set
+**      string type for NULL (type).
+**      Crash was caused by access to uninitialized pointer.
+**      Bindparam code for NULL/None removed, now uses generic bind code
+**      as used for strings and decimal.
 **/
 
 /* 
@@ -1654,10 +1662,9 @@ BindParameters(IIDBI_STMT *pstmt, unsigned char isProc)
         ** make orind persistent beyond this call by using the field
         ** in the parameter descriptor structure.
         */
+        orind = (SQLINTEGER *)&pstmt->parameter[i]->orInd;
         if (isNull)
             *orind = SQL_NULL_DATA;
-        else
-            orind = (SQLINTEGER *)&pstmt->parameter[i]->orInd;
 
         DBPRINTF(DBI_TRC_STAT)("DATATYPE IS %d for parameter %d\n",
             pstmt->parameter[i]->type, i+1);
@@ -1733,6 +1740,7 @@ BindParameters(IIDBI_STMT *pstmt, unsigned char isProc)
         case SQL_VARCHAR:
         case SQL_WCHAR:
         case SQL_WVARCHAR:
+        case SQL_TYPE_NULL:  /* special case typeless null ("None" data) */
             /* Start of generic BindParameters code */
 /* TODO add trace code for data? */
             DBPRINTF(DBI_TRC_STAT)("BindParameter %d SQL_PARAM_INPUT cType %d, type %d, precision %d, scale %d, internalSize %d, orind %d\n", i+1, cType, type, precision, scale, internalSize, *orind);
@@ -1794,25 +1802,6 @@ BindParameters(IIDBI_STMT *pstmt, unsigned char isProc)
                 return return_code;
             }
             break; 
-
- 
-        case SQL_TYPE_NULL:  /* special case typeless null ("None" data) */
-           DBPRINTF(DBI_TRC_STAT)("Parameter is None (null)\n");
-           rc = SQLBindParameter(pstmt->hdr.handle, i+1, SQL_PARAM_INPUT,
-               0, SQL_TYPE_NULL, 0, 0, 0, 0, 0);
-
-           if (rc != SQL_SUCCESS)
-           {
-               return_code = IIDBI_ERROR( rc, NULL, NULL, pstmt->hdr.handle,
-                   &pstmt->hdr.err );
-
-               DBPRINTF(DBI_TRC_STAT)
-                   ( "%d = SQLBindParameter (%d) %s %s %x\n    %s\n",
-                   rc, __LINE__, pstmt->hdr.err.sqlState,
-                   pstmt->hdr.err.messageText, pstmt->hdr.err.native, 0 );
-               return return_code;
-           }
-           break;
 
         case SQL_TYPE_TIME:
             if (isNull)

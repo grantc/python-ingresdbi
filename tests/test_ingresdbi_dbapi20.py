@@ -81,6 +81,13 @@
         Check for dbproc called lower was not checking the schema of the 
         current user which leed to dbproc failures if different users used 
         the same database for testing.
+    15-Sep-2009 (clach04)
+        New test test_BindNullNone for Trac ticket 417. Simply None/NULL test.
+        New test test_BindNullNoneTypes - more advanced test that checks
+        multiple types at destination.
+        Added support for drop temporary table.
+        Drop table function update for JDBC so ignore logic can be 
+        shared for IngresDBI and (Ingres) JDBC.
 """
 import dbapi20
 import unittest
@@ -199,13 +206,19 @@ DataError: (3, 2753, '42500', "[Ingres][NGRES ODBC Driver][NGRES]DROP: 'myblob' 
         # this should be fairly straight forward but the information
         # is not in an easy to use format
         if jython_runtime_detected:
-            if not info.message.endswith('[SQLCode: 2753], [SQLState: 42500]'):
+            sqlstate_str=info.message[info.message.rfind('['):]
+            if not sqlstate_str.startswith('[SQLState: '):
                 raise
+            sqlstate=sqlstate_str[len('[SQLState: '):]
+            # Lose ending ']'
+            sqlstate=sqlstate[:-1]
         else:
             # ingresdbi
             sqlstate=info.args[2]
-            if sqlstate != '42500':
-                raise
+        # 42500 - regular table
+        # 42503 - temp table
+        if sqlstate not in ['42500', '42503']:
+            raise
 
 globalsetUpOnceFlag=False
 class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
@@ -1215,6 +1228,49 @@ embedded bind params nulls In Unicode are lost
 
         self.curs.close()
 
+    def test_BindNullNone(self):
+        """Test bind parameters of None (NULL) Trac ticket:417
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value=None
+        sql_query="select ? from iidbconstants"
+
+        self.curs.execute(sql_query, (expected_value,))
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        self.curs.close()
+        self.con.close()
+    
+    def test_BindNullNoneTypes(self):
+        """Test bind parameters of None (NULL) with different destination types Trac ticket:417
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        expected_value=None
+        table_name='session.Temp'
+        sql_insert="INSERT INTO %s VALUES(?)" % table_name
+        sql_query="select col1 from %s" % table_name
+        column_type_list=['integer', 'float', 'char', 'varchar', 'nchar', 'nvarchar', 'decimal(10, 3)', 'date']
+
+        for temp_type in column_type_list:
+            dropTable(self.curs, table_name)
+            self.curs.execute("DECLARE GLOBAL TEMPORARY TABLE %s (col1 %s) ON COMMIT PRESERVE ROWS WITH NORECOVERY" % (table_name, temp_type))
+            self.curs.execute(sql_insert, (expected_value,))
+            self.curs.execute(sql_query)
+            rs = self.curs.fetchall()
+            rs = rs[0]
+            self.assertEqual(rs[0], expected_value)
+        # clean up
+        dropTable(self.curs, table_name)
+
+        self.curs.close()
+        self.con.close()
+    
     '''
     not actually abug by the looks of it
     def test_bugSelectLob(self):
