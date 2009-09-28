@@ -710,7 +710,7 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
 
 
     def test_bug_Embedded_BindNullsVarcharNonPrepared(self):
-        """Identical to test_bug_Embedded_BindNullsVarchar but does not use prepared cursors.
+        """Trac ticket:441 - Identical to test_bug_Embedded_BindNullsVarchar but does not use prepared cursors.
         This _may_ be an ODBC bug, if self.curs.prepared='y' is set, no problem reported
         As of 2009-09-01 fails with error:
             Syntax error on 'using'.  The correct syntax is:
