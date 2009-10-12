@@ -88,6 +88,10 @@
         Added support for drop temporary table.
         Drop table function update for JDBC so ignore logic can be 
         shared for IngresDBI and (Ingres) JDBC.
+    12-Oct-2009 (clach04)
+        New test test_FetchAfterClose for Trac ticket 445
+        New test test_ExecuteWithEmptyParams for Trac ticket 446
+        Don't change current directory if path of test is the current directory. 
 """
 import dbapi20
 import unittest
@@ -670,7 +674,7 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
     length(varchar(U&'x\\0000y')) as length_singlebyte,
     varchar(U&'x\\0000y') as hex_singlebyte
     from iidbconstants
-        """ # NOTE need 9.1.2 or later (problems with older/pre-patched versions)
+        """ # NOTE need 9.2 or later (problems with older/pre-patched versions, e.g. 9.1.2 does NOT work)
         #expected_value=u'x\u0000y' # NOTE not Python 3.x compatible....
         expected_value='x\x00y' # should be Python 2.x and 3.x compatible
         self.curs.execute(sql_query)
@@ -692,11 +696,11 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
     length(U&'x\0000y') as length_unicode,
     U&'x\0000y' as hex_unicode
     from iidbconstants
-        """ # NOTE need 9.1.2 or later (problems with older/pre-patched versions)
+        """ # NOTE need 9.2 or later (problems with older/pre-patched versions)
         sql_query="""select 
                     length(nvarchar(U&'x\\0000y')) as length_unicode,
                     nvarchar(U&'x\\0000y') as hex_unicode
-                    from iidbconstants;""" # NOTE need 9.1.2 or later (problems with older/pre-patched versions)
+                    from iidbconstants;""" # NOTE need 9.2 or later (problems with older/pre-patched versions)
         #expected_value=u'x\u0000y' # NOTE not Python 3.x compatible....
         expected_value='x\x00y' # should be Python 2.x and 3.x compatible
         self.curs.execute(sql_query)
@@ -1174,8 +1178,7 @@ embedded bind params nulls In Unicode are lost
         expected_value=u"X"*50 # Not python 3.x compat
         padlength=20
         expected_value_len=len(expected_value)+padlength
-        sql_query="select nchar('%s', %d) from iidbconstants" % (expected_value, expected_value_len) # Requires Ingres 9.2 (bug or missing feature in 9.1.1)
-        #sql_query="select nchar(nvarchar('%s', %d)) from iidbconstants" % (expected_value, expected_value_len) # Works with 9.1.1 but then get unexpected results, see ServiceDesk issue # 139191
+        sql_query="select nchar('%s', %d) from iidbconstants" % (expected_value, expected_value_len) # Requires Ingres 9.1.1/9.2 with fix for bug 121900
 
         self.curs.execute(sql_query)
         rs = self.curs.fetchall()
@@ -1271,6 +1274,46 @@ embedded bind params nulls In Unicode are lost
         self.curs.close()
         self.con.close()
     
+    def test_FetchAfterClose(self):
+        """Trac ticket 445 Python DBI Driver Segfaults when fetching rows from cursor on closed connection.
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        # tests go here
+        self.curs.execute('SELECT * FROM iidbconstants')
+        self.con.close()
+
+        # should raise exception
+        expected_exception=driver.OperationalError  ## old Linux ODBC driver only behavior
+        expected_exception=driver.InterfaceError
+        self.assertRaises(expected_exception, self.curs.fetchone)
+
+    def test_ExecuteWithEmptyParams(self):
+        """Trac ticket 446 execute with empty parm iterable
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+
+        # tests go here
+        expected_value=1
+        sql_query="select 1 from iidbconstants"
+
+        bind_parms=[] # List
+        self.curs.execute(sql_query, bind_parms)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        bind_parms=() # Tuple
+        self.curs.execute(sql_query, bind_parms)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+
+        self.curs.close()
+        self.con.close()
+
     '''
     not actually abug by the looks of it
     def test_bugSelectLob(self):
@@ -1309,5 +1352,6 @@ if __name__ == '__main__':
     # set current working directory to test directory if
     # test is not being run from the same directory
     testpath=os.path.dirname(__file__)
-    os.chdir(testpath) 
+    if testpath:
+        os.chdir(testpath) 
     unittest.main()

@@ -107,7 +107,8 @@
     IIDBI_handleWarning
     IIDBI_clearMessages
     IIDBI_connCleanup
-    IIDBI_sendParameter
+    IIDBI_sendParameters
+    IIDBI_IsTrue
 **)E
 **
 ** History:
@@ -232,6 +233,10 @@
 **      Ingres CLI doesn't care about cType, but MS ODBC manager does, set
 **      string type for NULL (type).
 **      Crash was caused by access to uninitialized pointer.
+**  12-Oct-2009 clach04
+**      Trac ticket 446 error on execute with empty parm iterable
+**      Created IIDBI_IsTrue(), which is now used to check (bind) 
+**      parameters for execute and executemany.
 **/
 
 static PyObject *IIDBI_Warning;
@@ -277,6 +282,7 @@ static PyObject * IIDBI_timeStampFromTicks(PyObject *self, PyObject *args);
 
 static PyObject * IIDBI_cursorIterator(IIDBI_CURSOR *self);
 static PyObject * IIDBI_cursorIterNext(IIDBI_CURSOR *self);
+static int IIDBI_IsTrue(PyObject* x);
 
 PyMODINIT_FUNC SQL_API initingresdbi(void);
 int IIDBI_cursorCleanup(IIDBI_CURSOR *self);
@@ -3698,7 +3704,6 @@ errorExit:
 **         Created.
 }*/
 
-
 static PyObject *IIDBI_cursorExecute(IIDBI_CURSOR *self, PyObject *args)
 {
     char *szSqlStr = NULL;
@@ -3783,7 +3788,7 @@ static PyObject *IIDBI_cursorExecute(IIDBI_CURSOR *self, PyObject *args)
     else
         IIDBIpstmt->prepareRequested = self->prepareRequested;
 
-    if (params)
+    if (IIDBI_IsTrue(params))
     {
          rc = IIDBI_sendParameters(self, params);
          switch (rc)
@@ -3897,6 +3902,7 @@ static PyObject *IIDBI_cursorExecute(IIDBI_CURSOR *self, PyObject *args)
     return(Py_None);
 
 errorExit:
+    DBPRINTF(DBI_TRC_STAT)("%p: IIDBI_cursorExecute errorExit\n", self);
     DBPRINTF(DBI_TRC_ENTRY)("%p: IIDBI_cursorExecute }}}1\n", self);
     if (self->szSqlStr)
     {
@@ -4016,7 +4022,7 @@ static PyObject *IIDBI_cursorCallProc(IIDBI_CURSOR *self, PyObject *args)
     IIDBIpdbc = connection->IIDBIpdbc;
 
     sprintf(szProcStr, procFmt, szSqlStr);
-    if (params)
+    if (IIDBI_IsTrue(params))
     {
         rc = IIDBI_sendParameters(self, params);
         switch (rc)
@@ -6332,9 +6338,62 @@ int IIDBI_sendParameters(IIDBI_CURSOR *self, PyObject *params)
 
 errorExit:
     Py_XDECREF(elem);
+    DBPRINTF(DBI_TRC_STAT)("%p: IIDBI_sendParameters errorExit\n", self);
     DBPRINTF(DBI_TRC_RET)("%p: IIDBI_sendParameters }}}1\n", self);
     if (result)
         return DBI_SQL_SUCCESS_WITH_INFO;
     else
         return DBI_SQL_ERROR;
 }
+
+/*{
+** Name: IIDBI_IsTrue
+** 
+** Description:
+**     Test to see if (Py)Object is True.
+**      Equivilent of Python code;
+**      
+**          if x:
+**              return True
+**          else:
+**              return False
+**      
+**     Except this handles NULL pointers.
+**
+** Inputs:
+**     params - PyObject*
+**
+** Outputs:
+**     None.
+**
+** Returns:
+**     -1 - Error
+**      0 - object is True
+**      1 - object is False
+**      
+**      Same values as PyObject_IsTrue():
+**      Returns 1 if the object is considered to be true, and 
+**      0 otherwise. This is equivalent to the Python expression
+**      "not not x". On failure, return -1.
+**
+** Exceptions:
+**     None.
+**
+** Side Effects:
+**     None.
+**
+** History:
+**     12-Oct-2009 clach04
+**         Created.
+}*/
+
+static int IIDBI_IsTrue(PyObject* x)
+{
+    if (x == Py_True)
+        return 1;
+    else if ((x == NULL) | (x == Py_False) | (x == Py_None))
+        return 0;
+    else
+        return PyObject_IsTrue(x);
+}
+
