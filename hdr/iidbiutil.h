@@ -37,6 +37,9 @@
 **          Add internal trace print function.
 **      12-Jul-2004 (raymond.fan@ca.com)
 **          Add function to initialize error structure.
+**      19-Oct-2009 (clach04)
+**          Made all variables and prototypes extern.
+**          Removed (unused) prototype for print_err.
 **/
 
 #ifndef __IIDBI_UTIL_H_INCLUDED
@@ -51,22 +54,20 @@
 /*
 ** Globals
 */
- int dbi_trclevel;
- FILE *dbi_dbgfd;
+extern int dbi_trclevel;
+extern FILE *dbi_dbgfd;
 
-IIDBI_DBC *dbi_newdbc( void );
+extern IIDBI_DBC *dbi_newdbc( void );
 
-void
-print_err(RETCODE rc, HENV henv, HDBC hdbc, SQLHSTMT hstmt);
-
-short int
+extern short int
 dbi_format( char* fmt, ... );
 
-RETCODE
+extern RETCODE
 dbi_error_withtext( RETCODE status, HENV henv, HDBC hdbc, SQLHSTMT hstmt, IIDBI_ERROR* err, char *err_str );
 #define IIDBI_ERROR( status, henv, hdbc, hstmt, err) dbi_error_withtext( status, henv, hdbc, hstmt, err, NULL )
 
-short int
+extern short int
 dbi_trace( int dbglevel, char* trcfile );
 
 # endif     /* __IIDBI_UTIL_H_INCLUDED */
+
