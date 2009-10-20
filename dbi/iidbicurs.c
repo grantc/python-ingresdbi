@@ -175,7 +175,7 @@ RETCODE BindParameters(IIDBI_STMT *pstmt, unsigned char isProc);
 ** Name: dbi_cursorClose - Close the cursor
 **
 ** Description:
-**     Close the cursor
+**     Close the ODBC cursor (not the DBI cursor)
 **
 ** Inputs:
 **     None.

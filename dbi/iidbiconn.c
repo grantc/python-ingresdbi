@@ -435,7 +435,6 @@ dbi_connect( IIDBI_DBC *pdbc)
 /*{
 ** Name: dbi_connectionClose - Issue a rollback and close the connection.
 **
-Corrected driver to call with an r3 installatioCorrected driver to call with an r3 installation
 ** Inputs:
 **     None.
 **

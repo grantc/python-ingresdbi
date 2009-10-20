@@ -237,6 +237,24 @@
 **      Trac ticket 446 error on execute with empty parm iterable
 **      Created IIDBI_IsTrue(), which is now used to check (bind) 
 **      parameters for execute and executemany.
+**  20-Oct-2009 (clach04)
+**      Trac ticket 445 crash under Windows when fetching rows from cursor
+**      on closed connection.
+**      Added check for exception for to fetchall so that exceptions raised
+**      by fetchone are not lost.
+**      Added quick/simply fix to check connection status on fetch. The old
+**      approach for the original IngresDBI driver was to maintain a dict of
+**      cursors in the connection and when the connection was closed, close
+**      all the cursors. This is not present in this pure C extension.
+**      Really should return back to that technique. Checking the connection
+**      for each single fetch is a needless overhead.
+**      NOTE problem did not occur under Linux, it appears the Unix Ingres
+**      ODBC driver (CLI manager) returns errors when a cursor for a closed
+**      connection is used. The Windows Ingres ODBC driver crashes. The
+**      Windows crash is actually expected behavior based on the ODBC spec
+**      calls to (for instance) fetch on a closed session will be using
+**      invalid pointers as the driver is responsible for free'ing each
+**      connection/cursror resource. Other Windows ODBC drivers also crash.
 **/
 
 static PyObject *IIDBI_Warning;
@@ -4314,8 +4332,26 @@ static PyObject *IIDBI_cursorFetch(IIDBI_CURSOR *self)
     PyObject *exception;
     char *errMsg;
     int result = FALSE;
+    IIDBI_CONNECTION *connection;
 
     DBPRINTF(DBI_TRC_RET)("%p: IIDBI_cursorFetch {{{1\n", self);
+
+    connection = self->connection;
+    /* Py_INCREF(connection); we don't intend to use this and we have the GIL so no need to increment */
+    if (connection == (IIDBI_CONNECTION *)Py_None)
+    {
+        exception = IIDBI_InternalError; 
+        errMsg = "Invalid connection object";
+        result = IIDBI_handleError((PyObject *)self, exception, errMsg);
+        goto errorExit;
+    }
+    else
+    {
+        if (connection->closed && !self->closed)
+        {
+            IIDBI_cursorClose(self); /* FIXME check return and exceptions...*/
+        }
+    }
 
     if (self->closed)
     {
@@ -4929,6 +4965,7 @@ static PyObject *IIDBI_cursorFetchAll(IIDBI_CURSOR *self)
 {
     PyObject *list = NULL;
     PyObject *row = NULL;
+    PyObject *lastexception = NULL;
     int dbistat = 0;
     PyObject *exception;
     char *errMsg;
@@ -4956,10 +4993,18 @@ static PyObject *IIDBI_cursorFetchAll(IIDBI_CURSOR *self)
 
     if (row == NULL)
     {
-        DBPRINTF(DBI_TRC_STAT)("fetchall call to IIDBI_cursorFetch got null\n");
-        exception = IIDBI_DatabaseError;
-        errMsg = "Error fetching rows";
-        result = IIDBI_handleError((PyObject *)self, exception, errMsg);
+        lastexception = PyErr_Occurred();
+        if (lastexception == NULL)
+        {
+            if (PyErr_GivenExceptionMatches(lastexception, IIDBI_Error))
+            {
+                /* We have an unhandled (non-IngresDBI) exception */
+                DBPRINTF(DBI_TRC_STAT)("fetchall call to IIDBI_cursorFetch got null\n");
+                exception = IIDBI_DatabaseError;
+                errMsg = "Error fetching rows";
+                result = IIDBI_handleError((PyObject *)self, exception, errMsg);
+            }
+        }
         goto errorExit;
     }
 
@@ -5306,7 +5351,7 @@ errorExit:
 ** Name: IIDBI_cursorClose
 **
 ** Description:
-**     Close a cursor object.
+**     Close a DBI cursor object.
 **
 ** Inputs:
 **     self - cursor object.
