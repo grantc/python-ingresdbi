@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 """
  Copyright (c) 2005-2008 Ingres Corporation. All Rights Reserved.
  
@@ -21,6 +21,12 @@ import os
 import sys
 import re
 from glob import glob
+
+try:
+    from docutils.core import publish_cmdline
+except ImportError:
+    publish_cmdline = None
+
 
 """
  History
@@ -91,6 +97,8 @@ from glob import glob
         Updated Trove tags with new maintainer.
         Updated so that sdist now includes the headers so that sdist
         produced tarballs can be built.
+    18-Nov-2009 (Chris.Clark@ingres.com)
+        README.html is now created by docutils.
 
  Known Issues
 
@@ -154,6 +162,24 @@ ii_system_lib=ii_system+"/ingres/lib"
 dbiversion='2.0.1'
 dbiversion_str='"""%s"""' % (dbiversion)
 
+filename_txt = 'README.txt'
+dest_html = os.path.splitext(filename_txt)[0] + '.html'
+
+if os.path.exists(dest_html) and os.path.getmtime(dest_html) < os.path.getmtime(filename_txt):
+    os.unlink(dest_html)
+
+if not os.path.exists(dest_html) and publish_cmdline:
+    print 'creating %s' % dest_html
+    publish_cmdline(writer_name='html',
+                        argv=[
+                                '--initial-header-level=2',
+                                '--stylesheet-path=ingres_style.css',
+                                filename_txt,
+                                dest_html,
+                            ]
+                    )
+
+
 # Default build flags, libraries, etc.
 defmacros=[("DBIVERSION", dbiversion_str)]
 libraries=["iiodbc.1","m", "c", "rt"]
@@ -192,6 +218,9 @@ if os.path.exists('MANIFEST'):
     os.unlink('MANIFEST')
 MANIFEST_in=open('MANIFEST.in', 'w')
 MANIFEST_in.write('recursive-include hdr *.h\n')
+MANIFEST_in.write('include CHANGELOG\n')
+MANIFEST_in.write('include LICENSE\n')
+MANIFEST_in.write('include ingres_style.css\n')
 MANIFEST_in.close()
 # rest of the source is handled by distutils.code.Extension
 # Extension does not handle include files.
