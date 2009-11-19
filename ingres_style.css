@@ -1,0 +1,193 @@
+BODY
+{
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    font-size: 80%;
+    font-weight: normal;
+    counter-reset: h1_no;
+}
+TABLE
+{
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    font-size: 100%;
+    color: 000000;
+
+}
+P
+{
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    font-weight: normal;
+
+}
+H2:before 
+{
+    content: counter(h1_no) ".0 ";
+    counter-increment: h1_no;  /* Add 1 to h1_no */
+}
+H3:before 
+{
+    content: counter(h1_no) "." counter(h2_no) " ";
+    counter-increment: h2_no;
+}
+H1
+{
+    font-size: 180%;
+    font-weight: bold;
+    color: #336699;
+}
+H2
+{
+    font-size: 155%;
+    font-weight: normal;
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    color: #336699 ;
+    counter-reset: h2_no;
+}
+H3                           
+{
+    font-size: 130%;
+    font-weight: bold;
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    color: #336699 ;
+    counter-reset: h3_no;
+}
+H4                           
+{
+    font-size: 130%;
+    font-weight: bold;
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    color: #336699;
+}
+A:link                       {
+    text-decoration: underline;
+    font-weight: bold;
+    color: #336699;
+}
+A:visited                    {
+    text-decoration: underline;
+    font-weight: bold;
+    color: #336699;
+}
+ol 
+{
+    list-style-type: decimal;
+    font-family:"Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+}
+ol.toc_l1 
+{
+    counter-reset: toc_l1 
+}
+ol.toc_l2 
+{
+    counter-reset: toc_l2 
+}
+ul
+{
+    list-style-type: disc;
+    font-family:"Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+}
+li                           
+{
+    font-family:"Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+}
+li.toc_l1:before
+{
+    content: counter(toc_l1) ".0 "; counter-increment: toc_l1
+}
+li.toc_l2:before
+{
+    content: counter(toc_l1) "." counter(toc_l2) " " ; counter-increment: toc_l2
+}
+li.toc_l1, li.toc_l2                       
+{
+    font-family:"Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    color:#336699;
+    font-weight:bold;
+    display: block;
+}
+B                            
+{
+    font-weight: bold  
+}
+STRONG                       
+{
+    font-weight: bold  
+}
+I                            
+{
+    font-style: italic  
+}
+EM                           
+{
+    font-style: italic  
+}
+INPUT                        
+{
+    color: #336699;
+     font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+     font-size: 90%;
+} /* Special */
+TEXTAREA                     
+{
+    color: #336699;
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    font-size: 90%;
+} /* Special */
+BLOCKQUOTE                   
+{
+    font-size: 80%;
+}
+PRE, CODE
+{
+    font-family: "courier new", courier, monospace;
+    font-size: 100%  
+}
+table, td                    
+{
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    font-weight: normal;
+    color: #000000;
+    vertical-align: top;
+    border: 1px solid #EBEBEB;
+    border-collapse: collapse;
+    font-size: 12px;
+    padding: 2px;
+}
+table.invis, td.invis
+{
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    font-weight: normal;
+    color: #000000;
+    vertical-align: middle;
+    border: 0px;
+    border-collapse: collapse;
+    font-size: 12px;
+    padding: 2px;
+}
+th
+{
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    font-weight: bold;
+    color: #000000;
+    vertical-align: top;
+    border: 1px solid #FFFFFF;
+    background-color: #006699;
+    color:#FFFFFF;
+    text-align: left;
+    padding: 2px;
+}
+tr.alt
+{
+    background-color : #F1F5FA;
+}
+.ingrescorp               {
+    font-family: Verdana, "Bitstream Vera Sans", Arial, Helvetica, Sans Serif;
+    color: #FFFFFF;
+    text-decoration: none;
+    background-color: #336699;
+    font-size: 130%;
+    font-weight: bold;
+}
+hr
+{
+    color: #CCCCCC; height:1px;
+}
