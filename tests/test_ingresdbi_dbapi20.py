@@ -92,6 +92,9 @@
         New test test_FetchAfterClose for Trac ticket 445
         New test test_ExecuteWithEmptyParams for Trac ticket 446
         Don't change current directory if path of test is the current directory. 
+    24-Nov-2009 (clach04)
+        New test test_bugSelectLongNvarchar for Trac ticket 502
+        New test NOtest_test_bugSelectLongNvarcharHang for iter hangs
 """
 import dbapi20
 import unittest
@@ -188,6 +191,7 @@ warnings.warn('Some tests are not being ran at the moment due to hangs (after th
 warnings.warn('Hang after: NOtest_anotherPreCursIter')
 warnings.warn('Hang after: NOtest_bugTimestampMicrosecs')
 warnings.warn('Hang after: NOtest_iterhang_presetup')
+warnings.warn('Hang after: NOtest_test_bugSelectLongNvarcharHang')
 warnings.warn('FIXME Filtering of warnings enabled! This should be checked.')
 warnings.simplefilter('ignore', Warning)
 ## We have an odd behavior, e.g. accessing connection.Warning, see dbapi20.py:210. pysqlite2 does not have this
@@ -1311,6 +1315,47 @@ embedded bind params nulls In Unicode are lost
         rs = rs[0]
         self.assertEqual(rs[0], expected_value)
 
+        self.curs.close()
+        self.con.close()
+
+    def test_bugSelectLongNvarcharValues(self):
+        """Trac ticket:502 select on LONG NVARCHAR returns empty string
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        # tests go here
+        expected_value='bake it'
+        sql_query="SELECT long_nvarchar('%s') FROM iidbconstants" % expected_value
+
+        self.curs.execute(sql_query)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+        
+        self.curs.close()
+        self.con.close()
+
+    def NOtest_test_bugSelectLongNvarcharHang(self):
+        """Trac ticket:502 select on LONG NVARCHAR returns empty string
+        Related to test_bugSelectLongNvarcharValue test but issues multiple
+        SQL statements which then cause test_cursorIter to hang if bug 502 is present.
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        # tests go here
+        expected_value='bake it'
+        ##  NOTE causes test_cursorIter to hang if bug 502 is present and this test is used
+        sql_query="SELECT recipe_string FROM recipe"
+        self.curs.execute('create table recipe (recipe_string long nvarchar)')
+        self.curs.execute("insert into recipe (recipe_string) values (%s)"%expected_value) # No bind params in this test, test is the select not the insert
+
+        self.curs.execute(sql_query)
+        rs = self.curs.fetchall()
+        rs = rs[0]
+        self.assertEqual(rs[0], expected_value)
+        
         self.curs.close()
         self.con.close()
 
