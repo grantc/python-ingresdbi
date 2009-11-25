@@ -255,6 +255,8 @@
 **      calls to (for instance) fetch on a closed session will be using
 **      invalid pointers as the driver is responsible for free'ing each
 **      connection/cursror resource. Other Windows ODBC drivers also crash.
+**  24-Nov-2009 (clach04)
+**      Added debug trace for unknown types on select/fetch.
 **/
 
 static PyObject *IIDBI_Warning;
@@ -4517,6 +4519,7 @@ static PyObject *IIDBI_cursorFetch(IIDBI_CURSOR *self)
                     break;
 
             default:
+                DBPRINTF(DBI_TRC_STAT)("IIDBI_cursorFetch defaulting col %d type descriptor[i]->type %d\n", i, descriptor[i]->type);
                 PyTuple_SetItem(row, i, 
                     PyString_FromStringAndSize(descriptor[i]->data,
                                                 (Py_ssize_t) descriptor[i]->orInd)

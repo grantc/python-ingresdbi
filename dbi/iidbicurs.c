@@ -152,6 +152,13 @@
 **      Crash was caused by access to uninitialized pointer.
 **      Bindparam code for NULL/None removed, now uses generic bind code
 **      as used for strings and decimal.
+**  24-Nov-2009 (clach04)
+**      Trac ticket 502 empty string returned for LONG NVARCHAR/NCLOB columns
+**      LONG NVARCHAR length indicator orInd was not being set
+**      resulting in empty strings being returned. Noticed same
+**      issue with other LONG types (LONG BYTE and LONG VARCHAR),
+**      lack of correct orInd was not an issue for these types
+**      but is inconsistent hence the change.
 **/
 
 /* 
@@ -662,7 +669,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
     RETCODE rc, return_code;
     HSTMT hstmt = pstmt->hdr.handle;
     int i, nType;
-    SQLINTEGER orind;
+    SQLINTEGER orind=0;
 #define SEGMENT_SIZE 1000000
     char *segment = NULL;
     int count;
@@ -699,6 +706,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 pstmt->descriptor[i]->data = NULL;
                 pstmt->descriptor[i]->isNull = 0;
                 pstmt->descriptor[i]->precision = 0;
+                pstmt->descriptor[i]->orInd = 0;
                 if (pstmt->outputColumnIndex && (i+1) == 
                     pstmt->outputColumnIndex)
                     segment_size = pstmt->outputSegmentSize;
@@ -757,6 +765,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                     {
                         pstmt->descriptor[i]->data = segment;
                         pstmt->descriptor[i]->precision = count;
+                        pstmt->descriptor[i]->orInd = count;
                     }
                 }
                 if (!SQL_SUCCEEDED(rc))
@@ -779,6 +788,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 pstmt->descriptor[i]->data = NULL;
                 pstmt->descriptor[i]->isNull = 0;
                 pstmt->descriptor[i]->precision = 0;
+                pstmt->descriptor[i]->orInd = 0;
                 if (pstmt->outputColumnIndex && (i+1) == 
                     pstmt->outputColumnIndex)
                     segment_size = pstmt->outputSegmentSize;
@@ -806,6 +816,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 {
                     pstmt->descriptor[i]->data = segment;
                     pstmt->descriptor[i]->precision = orind;
+                    pstmt->descriptor[i]->orInd = orind;
                 }
                 else
                 {
@@ -841,6 +852,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                     {
                         pstmt->descriptor[i]->data = segment;
                         pstmt->descriptor[i]->precision = count;
+                        pstmt->descriptor[i]->orInd = count;
                     }
                 }
                 if (!SQL_SUCCEEDED(rc))
@@ -862,6 +874,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 pstmt->descriptor[i]->data = NULL;
                 pstmt->descriptor[i]->isNull = 0;
                 pstmt->descriptor[i]->precision = 0;
+                pstmt->descriptor[i]->orInd = 0;
                 if (pstmt->outputColumnIndex && (i+1) == 
                     pstmt->outputColumnIndex)
                     segment_size = pstmt->outputSegmentSize;
@@ -920,6 +933,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                     {
                         pstmt->descriptor[i]->data = segment;
                         pstmt->descriptor[i]->precision = count;
+                        pstmt->descriptor[i]->orInd = count;
                     }
                 }
                 if (!SQL_SUCCEEDED(rc))
