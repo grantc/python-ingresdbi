@@ -99,6 +99,10 @@ except ImportError:
         produced tarballs can be built.
     18-Nov-2009 (Chris.Clark@ingres.com)
         README.html is now created by docutils.
+    12-Jan-2010 (Chris.Clark@ingres.com)
+        Retract fix for Trac bug 224 - rt library is not needed on 
+        any platform. rt lib is missing from Mac OSX which prevents
+        it from building.
 
  Known Issues
 
@@ -183,6 +187,7 @@ if not os.path.exists(dest_html) and publish_cmdline:
 # Default build flags, libraries, etc.
 defmacros=[("DBIVERSION", dbiversion_str)]
 libraries=["iiodbc.1","m", "c", "rt"]
+libraries=["iiodbc.1","m", "c"]
 
 # wintel build flags, hopefully the same for amd64 winxp
 if platform=="win32":
