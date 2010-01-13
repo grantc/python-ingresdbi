@@ -103,6 +103,15 @@ except ImportError:
         Retract fix for Trac bug 224 - rt library is not needed on 
         any platform. rt lib is missing from Mac OSX which prevents
         it from building.
+    12-Jan-2010 (Chris.Clark@ingres.com)
+        Fix for Trac Bug #526 Add libframe library.
+        Python driver needs ODBC (and CLI), 
+            which needs OpenAPI,
+            which in turn needs libq as that is where existing GCA code is
+        libq needs libframe, for some reason on some Unix platforms (Solaris)
+        libframe must be explictly linked in (unlike say Windows and Linux).
+        However linking in libframe under Linux is not an issue so setting
+        libframe as a default for all platforms (bar Windows).
 
  Known Issues
 
@@ -186,8 +195,7 @@ if not os.path.exists(dest_html) and publish_cmdline:
 
 # Default build flags, libraries, etc.
 defmacros=[("DBIVERSION", dbiversion_str)]
-libraries=["iiodbc.1","m", "c", "rt"]
-libraries=["iiodbc.1","m", "c"]
+libraries=["frame.1", "iiodbc.1", "m", "c"]
 
 # wintel build flags, hopefully the same for amd64 winxp
 if platform=="win32":
