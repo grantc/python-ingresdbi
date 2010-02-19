@@ -234,7 +234,7 @@ dbi_cursorClose( IIDBI_STMT* pstmt )
                 if (rc == SQL_ERROR)
                 {
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
     
                     DBPRINTF(DBI_TRC_STAT)( "%p: %d = dbi_cursorClose (%d) %s %s %x\n",
                     pstmt, rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -260,7 +260,7 @@ exitCloseCursor:
             {
                 if (return_code == DBI_SQL_SUCCESS)
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
     
                 DBPRINTF(DBI_TRC_STAT)( "%p: %d = dbi_cursorClose (%d) %s %s %x\n",
                     pstmt, rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -392,7 +392,7 @@ dbi_cursorExecute( IIDBI_DBC* pdbc, IIDBI_STMT* pstmt, char *stmnt,
     
                 if (rc != SQL_SUCCESS) 
                 {
-                    return_code = IIDBI_ERROR( rc, NULL, hdbc, NULL, 
+                    return_code = IIDBI_ERROR( rc, NULL, hdbc, hstmt, 
                         &pstmt->hdr.err );
                     DBPRINTF(DBI_TRC_STAT)
                         ( "%d = SQLAllocHandle SQL_HANDLE_STMT (%d) %s %s %x\n",
@@ -411,7 +411,7 @@ dbi_cursorExecute( IIDBI_DBC* pdbc, IIDBI_STMT* pstmt, char *stmnt,
     
             if (rc != SQL_SUCCESS) 
             {
-                return_code = IIDBI_ERROR( rc, NULL, hdbc, NULL, 
+                return_code = IIDBI_ERROR( rc, NULL, hdbc, hstmt, 
                     &pstmt->hdr.err );
                 DBPRINTF(DBI_TRC_STAT)
                     ( "%d = SQLAllocHandle SQL_HANDLE_STMT (%d) %s %s %x\n",
@@ -437,7 +437,7 @@ dbi_cursorExecute( IIDBI_DBC* pdbc, IIDBI_STMT* pstmt, char *stmnt,
     
                 if (rc != SQL_SUCCESS) 
                 {
-                    return_code = IIDBI_ERROR( rc, NULL, hdbc, NULL, 
+                    return_code = IIDBI_ERROR( rc, NULL, hdbc, hstmt, 
                         &pstmt->hdr.err );
                     DBPRINTF(DBI_TRC_STAT)
                         ( "%d = SQLAllocHandle SQL_HANDLE_STMT (%d) %s %s %x\n",
@@ -775,7 +775,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                         free( segment );
                     }
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                 }
                 break;
 
@@ -862,7 +862,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                         free( segment );
                     }
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                 }
                 break;
 
@@ -943,7 +943,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                         free( segment );
                     }
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                 }
                 break;
 
@@ -970,7 +970,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 else
                 {
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                         DBPRINTF(DBI_TRC_STAT)
                         ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n",
                             rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -1004,7 +1004,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 else
                 {
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                     DBPRINTF(DBI_TRC_STAT)
                     ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n",
                         rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -1034,7 +1034,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 else
                 {
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                     DBPRINTF(DBI_TRC_STAT)
                     ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n",
                         rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -1063,7 +1063,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 else
                 {
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                     DBPRINTF(DBI_TRC_STAT)
                     ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n",
                         rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -1092,7 +1092,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 else
                 {
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                     DBPRINTF(DBI_TRC_STAT)
                     ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n",
                         rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -1121,7 +1121,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 else
                 {
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                     DBPRINTF(DBI_TRC_STAT)
                     ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n",
                         rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -1152,7 +1152,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 else
                 {
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                     DBPRINTF(DBI_TRC_STAT)
                     ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n",
                         rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -1188,7 +1188,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 else 
                 { 
                     return_code = IIDBI_ERROR( rc, NULL, NULL,  
-                        pstmt, &pstmt->hdr.err ); 
+                        hstmt, &pstmt->hdr.err ); 
                     DBPRINTF(DBI_TRC_STAT) 
                     ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n", 
                         rc, __LINE__, pstmt->hdr.err.sqlState,  
@@ -1218,7 +1218,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
                 else
                 {
                     return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                        pstmt, &pstmt->hdr.err );
+                        hstmt, &pstmt->hdr.err );
                     DBPRINTF(DBI_TRC_STAT)
                     ( "%d = dbi_cursorFetchone (%d) %s %s %x\n\n",
                         rc, __LINE__, pstmt->hdr.err.sqlState, 
@@ -1232,7 +1232,7 @@ dbi_cursorFetchone( IIDBI_STMT *pstmt )
     }
     else
     {
-        return_code = IIDBI_ERROR( rc, NULL, NULL, pstmt, &pstmt->hdr.err );
+        return_code = IIDBI_ERROR( rc, NULL, NULL, hstmt, &pstmt->hdr.err );
         DBPRINTF(DBI_TRC_STAT) ( "%p: %d = dbi_cursorFetchone (%d) %s %s %x\n\n", pstmt,
             rc, __LINE__, pstmt->hdr.err.sqlState, pstmt->hdr.err.messageText, 
             pstmt->hdr.err.native);

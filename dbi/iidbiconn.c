@@ -485,8 +485,8 @@ dbi_connectionClose( IIDBI_DBC *pdbc )
     else if (rc == SQL_ERROR)
     {
         if (return_code == DBI_SQL_SUCCESS)
-            return_code = IIDBI_ERROR( rc, NULL, NULL, 
-                pdbc, &pdbc->hdr.err );
+            return_code = IIDBI_ERROR( rc, hdbc, NULL, 
+                NULL, &pdbc->hdr.err );
     
         DBPRINTF(DBI_TRC_STAT)( "%p: %d = dbi_connectionClose (%d) %s %s %x\n",
             pdbc, rc, __LINE__, pdbc->hdr.err.sqlState, 

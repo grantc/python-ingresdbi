@@ -5,6 +5,7 @@
  Test script for the Ingres Python DBI based on test_psycopg_dbapi20.py.
  Uses dbapi20.py version 1.10 obtained from
  http://stuartbishop.net/Software/DBAPI20TestSuite/
+ TODO check out http://code.google.com/p/acute-dbapi/
 
  History:
     02-May-2008 (grant.croker@ingres.com)

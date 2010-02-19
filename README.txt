@@ -5,6 +5,10 @@ Ingres Python DBI Driver Version 2.0.1
 .. include:: <isonum.txt>
 .. contents::
 .. TODO add .. sectnum:: - requires Ingres css cleanup due to dupicate (and out of step) section numbers
+     code blocks - take default css for docutils and apply Ingres changes to it piecemeal
+     fix up Mac docs, e.g. x86 builds for 32 bit - see forumn
+     python 2.4 support is mandatory due to datetime
+     copyright symbol work?
 
 --------
 
