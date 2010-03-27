@@ -5573,7 +5573,9 @@ int IIDBI_mapType(int type)
         break;
 
     case SQL_BIT:
+#ifdef SQL_BIT_VARYING 
     case SQL_BIT_VARYING:
+#endif
     case SQL_LONGVARBINARY:
     case SQL_LONGVARCHAR:
     case SQL_BINARY:
