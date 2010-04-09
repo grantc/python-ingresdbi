@@ -196,6 +196,10 @@ if not os.path.exists(dest_html) and publish_cmdline:
 # Default build flags, libraries, etc.
 defmacros=[("DBIVERSION", dbiversion_str)]
 libraries=["frame.1", "iiodbc.1", "m", "c"]
+if platform.startswith('linux'):
+    # workaround libq bug where rt is not linked to libq
+    # odbc needs libq, ingresdbi needs odbc
+    libraries += ['rt']
 
 # wintel build flags, hopefully the same for amd64 winxp
 if platform=="win32":

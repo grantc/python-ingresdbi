@@ -316,9 +316,10 @@ Mac OS X, Linux and Unix
 
         cd ingresdbi-2.0.1
 
-3.  Initiate the build process. ::
+3.  Initiate the build process.
+    NOTE this requires the python devel packages to be installed ::
 
-        python setup.py build
+        python setup.py build --force
 
 
 
@@ -336,7 +337,7 @@ Windows
 
 -   Initiate the build process. ::
 
-            python setup.py build
+            python setup.py build --force
 
 
 **Note:** You can skip this and jump straight to the install process as this
