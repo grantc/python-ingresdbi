@@ -17,6 +17,7 @@
 """
 
 from distutils.core import setup, Extension
+from distutils.util import get_platform
 import os
 import sys
 import re
@@ -112,6 +113,14 @@ except ImportError:
         libframe must be explictly linked in (unlike say Windows and Linux).
         However linking in libframe under Linux is not an issue so setting
         libframe as a default for all platforms (bar Windows).
+    22-Jun-2010 (Grant.Croker@ingres.com)
+        Ticket #623 - Add support for Ingres on Windows 64-bit (AMD64)
+    22-Jun-2010 (Grant.Croker@ingres.com)
+        Use Vim modeline to enforce formatting
+        - 1 tab = 4 spaces (tabstop,ts)
+        - tabs are expanded to spaces (expandtab)
+        - line shift 4 spaces (shiftwidth,sw)
+        - smart tab handling (smarttab)
 
  Known Issues
 
@@ -209,7 +218,6 @@ if platform=="win32":
                ("_MT", None),
                ("DESKTOP", None),
                ("INGRESII", None),
-               ("_X86_", None),
                ("i386", 1),
                ("INCLUDE_ALL_CL_PROTOS", None),
                ("DEVL", None),
@@ -218,6 +226,12 @@ if platform=="win32":
                ("SQL_BIT_VARYING", 15),
                ("DBIVERSION",dbiversion_str)
                ]
+    # Check to see if this is 64-bit Windows
+    platform_arch = get_platform()
+    if platform_arch == "win-amd64":
+        defmacros.append(("_AMD64_", None))
+    else:
+        defmacros.append(("_X86_", None))
     libraries=["odbc32","msvcrt","kernel32"]
 """
 
@@ -287,3 +301,6 @@ ingresdbi is licensed under the `GPL v2`_
         ],
     download_url="http://ingres.com/",
     ),
+
+# -*- coding: ascii -*-
+# vim:ts=4:sw=4:softtabstop=4:smarttab:expandtab
