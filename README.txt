@@ -319,8 +319,11 @@ Mac OS X, Linux and Unix
 3.  Initiate the build process.
     NOTE this requires the python devel packages to be installed ::
 
-        python setup.py build --force
+        env LANG=c python setup.py build --force
 
+4.  Optional, run the test suite: ::
+
+        env LANG=c python tests/test_ingresdbi_dbapi20.py
 
 
 Windows

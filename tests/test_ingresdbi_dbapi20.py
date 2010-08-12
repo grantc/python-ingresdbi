@@ -719,8 +719,8 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
 
 
     def test_bug_Embedded_BindNullsVarcharNonPrepared(self):
-        """Trac ticket:441 - Identical to test_bug_Embedded_BindNullsVarchar but does not use prepared cursors.
-        This _may_ be an ODBC bug, if self.curs.prepared='y' is set, no problem reported
+        """Trac ticket:441 (DBMS ServiceDesk issue 146002)- Identical to test_bug_Embedded_BindNullsVarchar but does not use prepared cursors.
+        This is a DBMS bug (_may_ be an ODBC bug), if self.curs.prepared='y' is set, no problem reported. See Service Desk issue 146002.
         As of 2009-09-01 fails with error:
             Syntax error on 'using'.  The correct syntax is:
              OPEN CURSORID CURSOR FOR fullselect
