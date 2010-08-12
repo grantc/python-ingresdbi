@@ -68,6 +68,13 @@
 **          Added cursor.setinputsizes() and cursor.setoutputsize().
 **      28-Apr-2008 (grant.croker@ingres.com)
 **          Define MAX_PATH as 256 if not already defined
+**      11-Aug-2010 (clach04)
+**          Added DBI_SQL_MAX_MESSAGE_LENGTH for max error length
+**          ODBC default length is typically only 512 bytes. Ingres 10
+**          has increased object names to 255, so an error message with
+**          two long object names in it will truncate very quickly.
+**          This is a temp fix until IIDBI_ERROR struct can be updated
+**          with size indicator and a dynamic buffer be used instead.
 **/
 
 # ifndef __IIDBI_H_INCLUDED
@@ -102,10 +109,12 @@
 **   07-Jul-04 (loera01)
 **      Created.
 */
+
+# define DBI_SQL_MAX_MESSAGE_LENGTH (10*1024)
 typedef struct
 {
     char      sqlState[6];
-    char      messageText[SQL_MAX_MESSAGE_LENGTH];
+    char      messageText[DBI_SQL_MAX_MESSAGE_LENGTH]; /* TODO make this dynamic */
     SQLINTEGER native;
 }  IIDBI_ERROR;
 
