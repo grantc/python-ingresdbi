@@ -4316,6 +4316,9 @@ errorExit:
 ** History:
 **     26-May-06 Ralph.Loen@ingres.com
 **         Created.
+**     09-Dec-10 Grant.Croker@ingres.com
+**         Trac Ticket 161 - Provide a more descriptive error message when a
+**         fetch is performed against non-SELECT query.
 }*/
 
 static PyObject *IIDBI_cursorFetch(IIDBI_CURSOR *self)
@@ -4377,8 +4380,8 @@ static PyObject *IIDBI_cursorFetch(IIDBI_CURSOR *self)
     if (!IIDBIpstmt->descCount)
     {
         self->rowcount = -1;
-        exception = IIDBI_InterfaceError;
-        errMsg = "No tuple descriptor count";
+        exception = IIDBI_DataError;
+        errMsg = "No results are available";
         result = IIDBI_handleError((PyObject *)self, exception, errMsg);
         goto errorExit;
     }

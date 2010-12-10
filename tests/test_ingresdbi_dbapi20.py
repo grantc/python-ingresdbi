@@ -96,6 +96,9 @@
     24-Nov-2009 (clach04)
         New test test_bugSelectLongNvarchar for Trac ticket 502
         New test NOtest_test_bugSelectLongNvarcharHang for iter hangs
+    10-Dec-2010 (grant)
+        Replaced the test_bugSelectLob with test_bugNonSelectFetch for 
+        Trac ticket 161
 """
 import dbapi20
 import unittest
@@ -1360,25 +1363,20 @@ embedded bind params nulls In Unicode are lost
         self.curs.close()
         self.con.close()
 
-    '''
-    not actually abug by the looks of it
-    def test_bugSelectLob(self):
-        """Trac ticket:161 - fetch after insert (i.e. no select) - what is the expected behavior?
+    def test_bugNonSelectFetch(self):
+        """Trac ticket:161 - fetch after insert (i.e. no select)
         """
         self.con = self._connect()
         self.curs = self.con.cursor()
         
-        blob = 'x' * 1255130
-        #self.curs.execute("drop table myBlob")
-        dropTable(self.curs, 'myBlob')
-        self.curs.execute("create table myBlob(blobCol long byte)")
-        self.curs.execute("insert into myBlob values(?)", (self.driver.Binary(blob),))
-        #self.curs.execute("select * from myBlob")
-        rs = self.curs.fetchall() # issue fetch after an insert
-        
+        text = '1255130'
+        table = 'bug161'
+        dropTable(self.curs, '%s' % table)
+        self.curs.execute("create table %s (mytext varchar(10) not null)" % (table))
+        self.curs.execute("insert into %s values(?)" % (table), (text))
+        self.failUnlessRaises(driver.DataError, self.curs.fetchall)
         self.curs.close()
         self.con.close()
-    '''
 
     '''
     def test_TemplateCopyPasteMe(self):
