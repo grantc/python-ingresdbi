@@ -99,6 +99,9 @@
     10-Dec-2010 (grant)
         Replaced the test_bugSelectLob with test_bugNonSelectFetch for 
         Trac ticket 161
+    10-Dec-2010 (grant)
+        Trac ticket 702 - Fix up tearDown() so it actually cleans up the 
+        cursor/connection after each test, preventing hangs.
 """
 import dbapi20
 import unittest
@@ -325,7 +328,18 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
         # end of setUp() there is no per test setup required.
 
     def tearDown(self):
-        dbapi20.DatabaseAPI20Test.tearDown(self)
+        if hasattr(self, "cur"):
+            try:
+                self.cur.close()
+            except (self.driver.Error):
+                pass
+            del(self.cur)
+        if hasattr(self, "con"):
+            try:
+                self.con.close()
+            except (self.driver.Error):
+                pass
+            del(self.con)
 
     def test_nextset(self): pass
     def test_setoutputsize(self): pass
