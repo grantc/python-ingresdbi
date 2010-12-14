@@ -56,15 +56,27 @@ Ingres, including:
 Installation Considerations
 ---------------------------
 
+Building the driver
+~~~~~~~~~~~~~~~~~~~
+
 To build and install the Ingres Python DBI interface, the following
 components are needed:
 
 -   Ingres r3 or above, including Ingres 2006. For a list of binary
     downloads, see http://www.ingres.com. For a source listing if you wish
     to build Ingres from source code, see http://www.ingres.com.
+-   Ingres ODBC driver and related header files
 -   C compiler (for example, GNU/C or Microsoft Visual Studio)
 -   Python interpreter version 2.4 or above
 -   The Ingres Python DBI source code
+
+Using the driver
+~~~~~~~~~~~~~~~~
+
+-   Ingres r3 or above, including Ingres 2006. For a list of binary
+    downloads, see http://www.ingres.com.
+-   Ingres ODBC driver
+-   Python interpreter version 2.4 or above
 
 --------
 
@@ -205,7 +217,7 @@ object, using all keywords:
 ::
 
         conn = ingresdbi.connect(dsn ="myDSN",
-                database  "myDB",
+                database = "myDB",
                 vnode = "(LOCAL)",
                 uid = "myUID",
                 pwd = "myPWD",
