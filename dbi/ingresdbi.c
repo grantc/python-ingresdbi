@@ -4089,98 +4089,66 @@ static PyObject *IIDBI_cursorCallProc(IIDBI_CURSOR *self, PyObject *args)
         parameter = IIDBIpstmt->parameter;
         for (i = 0; i < parmCount; i++)
         {
-            switch (parameter[i]->type)
+            if (parameter[i]->isNull)
             {
-            case SQL_BIGINT:
-                n = *(ODBCINT64 *)parameter[i]->data;
-                if (parameter[i]->isNull)
+                Py_INCREF(Py_None);
+                PyTuple_SetItem(row, i, Py_None);
+            }
+            else
+            {
+                switch (parameter[i]->type)
                 {
-                    PyTuple_SetItem(row, i, Py_None);
-                }
-                else
+                case SQL_BIGINT:
+                    n = *(ODBCINT64 *)parameter[i]->data;
                     PyTuple_SetItem(row, i, PyLong_FromLongLong(n));
-                break;
-    
-            case SQL_INTEGER:
-                j = *(SQLINTEGER *)parameter[i]->data;
-                m = (long)j;
-                if (parameter[i]->isNull)
-                {
-                    PyTuple_SetItem(row, i, Py_None);
-                }
-                else
+                    break;
+        
+                case SQL_INTEGER:
+                    j = *(SQLINTEGER *)parameter[i]->data;
+                    m = (long)j;
                     PyTuple_SetItem(row, i, PyInt_FromLong(m));
-                break;
-    
-             case SQL_SMALLINT:
-                k = *(SQLSMALLINT *)parameter[i]->data;
-                m = (long)k;
-                if (parameter[i]->isNull)
-                {
-                    PyTuple_SetItem(row, i, Py_None);
-                }
-                else
+                    break;
+        
+                 case SQL_SMALLINT:
+                    k = *(SQLSMALLINT *)parameter[i]->data;
+                    m = (long)k;
                     PyTuple_SetItem(row, i, PyInt_FromLong(m));
-                break;
-    
-            case SQL_TINYINT:
-                l = *(SQLCHAR *)parameter[i]->data;
-                m = (long)l;
-                if (parameter[i]->isNull)
-                {
-                    PyTuple_SetItem(row, i, Py_None);
-                }
-                else
+                    break;
+        
+                case SQL_TINYINT:
+                    l = *(SQLCHAR *)parameter[i]->data;
+                    m = (long)l;
                     PyTuple_SetItem(row, i, PyInt_FromLong(m));
-                break;
-      
-            case SQL_FLOAT:
-            case SQL_REAL:
-            case SQL_DOUBLE:
-                if (parameter[i]->isNull)
-                {
-                    PyTuple_SetItem(row, i, Py_None);
-                }
-                else
+                    break;
+          
+                case SQL_FLOAT:
+                case SQL_REAL:
+                case SQL_DOUBLE:
                     PyTuple_SetItem(row, i,
-                        PyFloat_FromDouble(*(double *)parameter[i]->data));
-                break;
-    
-            case SQL_LONGVARCHAR:
-            case SQL_LONGVARBINARY:
-                if (parameter[i]->isNull)
-                {
-                    PyTuple_SetItem(row, i, Py_None);
-                }
-                else
+                            PyFloat_FromDouble(*(double *)parameter[i]->data));
+                    break;
+        
+                case SQL_LONGVARCHAR:
+                case SQL_LONGVARBINARY:
                     PyTuple_SetItem(row, i, (PyObject *)
-                        PyString_FromStringAndSize( parameter[i]->data, 
-                                                    parameter[i]->precision));
-                break;
-    
-            case SQL_WCHAR:
-            case SQL_WVARCHAR:
-            case SQL_WLONGVARCHAR:
-                if (parameter[i]->isNull)
-                {
-                    PyTuple_SetItem(row, i, Py_None);
-                }
-                else
-                      PyTuple_SetItem(row, i, (PyObject *)
-                        PyUnicode_Decode((const char *)parameter[i]->data, 
-                        (int)wcslen(parameter[i]->data)*sizeof(SQLWCHAR),
-                        "utf_16","strict")); /* dbproc FIXME */
-                break;
-    
-            default:
-                if (parameter[i]->isNull)
-                {
-                    PyTuple_SetItem(row, i, Py_None);
-                }
-                else
+                            PyString_FromStringAndSize( parameter[i]->data, 
+                                                        parameter[i]->precision));
+                    break;
+        
+                case SQL_WCHAR:
+                case SQL_WVARCHAR:
+                case SQL_WLONGVARCHAR:
+                    PyTuple_SetItem(row, i, (PyObject *)
+                            PyUnicode_Decode((const char *)parameter[i]->data, 
+                            (int)wcslen(parameter[i]->data)*sizeof(SQLWCHAR),
+                            "utf_16","strict")); /* dbproc FIXME */
+                    break;
+        
+                default:
                     PyTuple_SetItem(row, i, 
-                        PyString_FromString(parameter[i]->data)); /* dbproc FIXME use PyString_FromStringAndSize */
-                break;
+                            PyString_FromString(parameter[i]->data)); /* dbproc FIXME use PyString_FromStringAndSize */
+                    break;
+                }
             }
         } /* for (i = 0; i < parmCount; i++) */
     }  /* if (params) */
@@ -4248,10 +4216,10 @@ static PyObject *IIDBI_cursorCallProc(IIDBI_CURSOR *self, PyObject *args)
                 goto errorExit;
             }
             rc = PyTuple_SetItem( descRow, 1, PyInt_FromLong((long)type));
-            rc = PyTuple_SetItem( descRow, 2, Py_None);
-            rc = PyTuple_SetItem( descRow, 3, Py_None);
-            rc = PyTuple_SetItem( descRow, 4, Py_None);
-            rc = PyTuple_SetItem( descRow, 5, Py_None);
+            rc = PyTuple_SetItem( descRow, 2, Py_None); Py_INCREF(Py_None);
+            rc = PyTuple_SetItem( descRow, 3, Py_None); Py_INCREF(Py_None);
+            rc = PyTuple_SetItem( descRow, 4, Py_None); Py_INCREF(Py_None);
+            rc = PyTuple_SetItem( descRow, 5, Py_None); Py_INCREF(Py_None);
             rc = PyTuple_SetItem( descRow, 6, 
                 PyInt_FromLong((long)descriptor->nullable));
 

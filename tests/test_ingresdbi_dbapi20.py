@@ -686,6 +686,58 @@ class test_Ingresdbi(dbapi20.DatabaseAPI20Test):
         self.curs.close()
         self.con.close()
 
+    def test_bugPyNoneTooManyFreesDataBaseProcedure(self):
+        """dbproc version of Trac ticket:403 Bug 121611 - PyNone multiple (too many) frees/decrefs, opposite of a memory-leak.
+        Error from Python interpreter:
+            Fatal Python error: deallocating None
+        """
+        self.con = self._connect()
+        self.curs = self.con.cursor()
+        
+        # type is not really that important (all types appear to free too many times), using ints to have a specific type to test
+        # NOTE this is a non-row returning dbproc
+        sql_query = '''create procedure dbp_ingresdbi_test_null (a integer, b integer, c integer, d integer, e integer, f integer, g char(10), h varchar(10), i date /* ingresdate */, j float4, k float8, l decimal(30, 5)) as
+            begin
+                a = NULL;
+                b = NULL;
+                c = NULL;
+                d = NULL;
+                e = NULL;
+                f = NULL;
+                g = NULL;
+                h = NULL;
+                i = NULL;
+                j = NULL;
+                k = NULL;
+                l = NULL;
+            end;
+        '''
+        self.curs.execute(sql_query)
+        bind_params = (None, None, None, None, None, None, None, None, None, None, None, None);
+        # 'note ref count dips below original/start'
+        number_of_executes=1 ## this won't crash but is enough to see None refcount go down
+        number_of_executes=200 ## this should cause the crash
+        pynone_count_fuzzy=2 # not yet sure what a reasonably fuzz factor is, ideally zero
+        gc.collect() # force garbarge collection, may not be needed. Be Safe.
+        count_pre_loop=sys.getrefcount(None)
+        for x in range(number_of_executes):
+            count_pre_execute=sys.getrefcount(None)
+            dbproc_result = self.curs.callproc('dbp_ingresdbi_test_null', bind_params)
+            count_pre_fetchall=sys.getrefcount(None)
+            #rs = self.curs.fetchall()  # this isn't needed (and causes InterfaceError) (as dbproc is not row/table returning) but may be a useful test addition/excercise
+            count_post_fetchall=sys.getrefcount(None)
+            #del rs
+            del dbproc_result
+            gc.collect()
+            count_post_delfetchall=sys.getrefcount(None)
+            self.assert_(pynone_count_fuzzy >= count_pre_execute-count_post_delfetchall, 'appear to have a PyNone refcount problem %r >= %r - %r' % (pynone_count_fuzzy, count_pre_execute, count_post_delfetchall))
+        gc.collect()
+        count_post_loop=sys.getrefcount(None)
+        self.assert_(pynone_count_fuzzy >= count_pre_loop-count_post_loop, 'appear to have a PyNone refcount problem %r >= %r - %r' % (pynone_count_fuzzy, count_pre_execute, count_post_delfetchall))
+        
+        self.curs.close()
+        self.con.close()
+
     def test_bug_Embedded_NullsVarchar(self):
         """Trac ticket:255 - embedded nulls in varchar type are lost
         """
