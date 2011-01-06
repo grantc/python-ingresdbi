@@ -16,7 +16,7 @@
  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
 
-from distutils.core import setup, Extension
+from distutils.core import setup, Extension, Command
 from distutils.util import get_platform
 import os
 import sys
@@ -165,6 +165,19 @@ Suggested setup.py parameters:
 
 # Normal setup.py functions for platform/version packaging
 
+class TestSuite(Command):
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        print 'About to start test suite'
+        import subprocess
+        test_scriptname = os.path.join('tests', 'test_ingresdbi_dbapi20.py')
+        errno = subprocess.call([sys.executable, test_scriptname])
+        raise SystemExit(errno)
+
 # Take a copy of platform incase sys.platform is insufficient and we need more granularity
 platform=sys.platform
 
@@ -300,6 +313,7 @@ ingresdbi is licensed under the `GPL v2`_
         'Classifier: Topic :: Database :: Database Engines/Servers',
         ],
     download_url="http://ingres.com/",
+    cmdclass = {'test': TestSuite},
     ),
 
 # -*- coding: ascii -*-

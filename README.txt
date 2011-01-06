@@ -336,6 +336,7 @@ Mac OS X, Linux and Unix
 4.  Optional, run the test suite: ::
 
         env LANG=c python tests/test_ingresdbi_dbapi20.py
+        env LANG=c python setup.py test
 
 
 Windows
