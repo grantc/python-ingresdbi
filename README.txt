@@ -4,9 +4,9 @@ Ingres Python DBI Driver Version 2.0.1
 
 .. include:: <isonum.txt>
 .. contents::
-.. TODO add .. sectnum:: - requires Ingres css cleanup due to dupicate (and out of step) section numbers
+.. TODO add .. sectnum:: - requires Ingres css cleanup due to duplicate (and out of step) section numbers
      code blocks - take default css for docutils and apply Ingres changes to it piecemeal
-     fix up Mac docs, e.g. x86 builds for 32 bit - see forumn
+     fix up Mac docs, e.g. x86 builds for 32 bit - see forums
      python 2.4 support is mandatory due to datetime
      copyright symbol work?
 
@@ -63,8 +63,8 @@ To build and install the Ingres Python DBI interface, the following
 components are needed:
 
 -   Ingres r3 or above, including Ingres 2006. For a list of binary
-    downloads, see http://www.ingres.com. For a source listing if you wish
-    to build Ingres from source code, see http://www.ingres.com.
+    downloads, see http://www.actian.com. For a source listing if you wish
+    to build Ingres from source code, see http://www.actian.com.
 -   Ingres ODBC driver and related header files
 -   C compiler (for example, GNU/C or Microsoft Visual Studio)
 -   Python interpreter version 2.4 or above
@@ -74,7 +74,7 @@ Using the driver
 ~~~~~~~~~~~~~~~~
 
 -   Ingres r3 or above, including Ingres 2006. For a list of binary
-    downloads, see http://www.ingres.com.
+    downloads, see http://www.actian.com.
 -   Ingres ODBC driver
 -   Python interpreter version 2.4 or above
 
@@ -132,7 +132,7 @@ following keywords are valid:
    * - connectstr
      - alternate connection string
    * - vnode
-     - vnode definition as defined in the Ingres netutil utility. For more information, see the `Ingres Connectivity Guide <http://docs.ingres.com/connectivity/>`_
+     - vnode definition as defined in the Ingres netutil utility. For more information, see the `Ingres Connectivity Guide <http://docs.actian.com/ingres/10s/connectivity-guide/>`_
    * - uid
      - user login ID
    * - pwd
@@ -167,7 +167,7 @@ the vnode definition, or the vnode attribute can be omitted.
 
 If the "connectstr" keyword is specified, the other keywords are optional.
 The "connectstr" keyword specifies an ODBC connection string. For examples of
-valid Ingres ODBC connection strings, see the `Ingres Connectivity Guide <http://docs.ingres.com/connectivity/>`_.
+valid Ingres ODBC connection strings, see the `Ingres Connectivity Guide <http://docs.actian.com/ingres/10s/connectivity-guide>`_.
 
 All of the above keywords reference string values except for the "trace"
 keyword. The "trace" keyword references a tuple with two members. The first
@@ -475,15 +475,10 @@ Windows Issues
 Support
 -------
 
-Support for the Python Ingres DBI interface is available from a number of
-different sources. Users with a support contract can either raise an issue
-via https://servicedesk.ingres.com/ or through their local technical
-support department. See http://ingres.com/support for a complete list of
-locations, primary service hours, and telephone numbers. Users without a
-support contract can post questions or problems to the Ingres Community
-Forums (http://community.ingres.com/forum/ or to comp.databases.ingres
-(http://groups.google.com/group/comp.databases.ingres)
+The Python Ingres DBI driver is a community project. Questions or problems
+can be posted to the Ingres Community Forums (http://community.actian.com/forum/
+or to comp.databases.ingres (http://groups.google.com/group/comp.databases.ingres)
 
 --------
 
-Copyright |copy| 2008 Ingres Corporation. All rights reserved.
+Copyright |copy| 2008 Actian Corporation. All rights reserved.
