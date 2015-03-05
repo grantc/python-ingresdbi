@@ -121,6 +121,8 @@ except ImportError:
         - tabs are expanded to spaces (expandtab)
         - line shift 4 spaces (shiftwidth,sw)
         - smart tab handling (smarttab)
+    05-Mar-2015
+        - Add support for building eggs    
 
  Known Issues
 
